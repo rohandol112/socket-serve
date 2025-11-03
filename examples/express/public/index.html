@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>socket-serve Express Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .status {
+            padding: 15px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-dot.disconnected {
+            background: #dc3545;
+            animation: none;
+        }
+
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 80%;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.system {
+            background: #e3f2fd;
+            color: #1976d2;
+            font-size: 14px;
+            text-align: center;
+            max-width: 100%;
+        }
+
+        .message.user {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+        }
+
+        .message.other {
+            background: white;
+            border: 1px solid #e9ecef;
+        }
+
+        .message-meta {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .typing-indicator {
+            padding: 10px 20px;
+            font-size: 14px;
+            color: #6c757d;
+            font-style: italic;
+            min-height: 40px;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ socket-serve</h1>
+            <p>Express + SSE Real-time Chat</p>
+        </div>
+
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+
+        <div class="messages" id="messages"></div>
+        
+        <div class="typing-indicator" id="typingIndicator"></div>
+
+        <div class="input-area">
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Type a message..."
+                    disabled
+                />
+                <button id="sendButton" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { connect } from '/socket-client.js';
+
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        let typingTimeout;
+        let socket;
+
+        function addMessage(text, type = 'system') {
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            
+            const content = document.createElement('div');
+            content.textContent = text;
+            message.appendChild(content);
+
+            if (type !== 'system') {
+                const meta = document.createElement('div');
+                meta.className = 'message-meta';
+                meta.textContent = new Date().toLocaleTimeString();
+                message.appendChild(meta);
+            }
+
+            messagesDiv.appendChild(message);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            if (connected) {
+                statusDot.classList.remove('disconnected');
+                statusText.textContent = 'Connected';
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+            } else {
+                statusDot.classList.add('disconnected');
+                statusText.textContent = 'Disconnected';
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+            }
+        }
+
+        // Connect to socket-serve
+        socket = connect('/socket');
+
+        socket.on('welcome', (data) => {
+            console.log('Welcome:', data);
+            addMessage(data.text, 'system');
+            updateStatus(true);
+        });
+
+        socket.on('chat', (data) => {
+            console.log('Chat:', data);
+            addMessage(data.text, 'other');
+        });
+
+        socket.on('typing', (data) => {
+            if (data.isTyping) {
+                typingIndicator.textContent = '💭 Someone is typing...';
+            } else {
+                typingIndicator.textContent = '';
+            }
+        });
+
+        // Send message
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !socket.connected) return;
+
+            socket.emit('chat', { text });
+            addMessage(text, 'user');
+            messageInput.value = '';
+            
+            // Stop typing indicator
+            socket.emit('typing', { isTyping: false });
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Typing indicator
+        messageInput.addEventListener('input', () => {
+            if (!socket.connected) return;
+
+            socket.emit('typing', { isTyping: true });
+
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing', { isTyping: false });
+            }, 1000);
+        });
+
+        // Handle disconnect
+        window.addEventListener('beforeunload', () => {
+            socket.disconnect();
+        });
+    </script>
+</body>
+</html>

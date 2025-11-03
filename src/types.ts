@@ -5,8 +5,8 @@
 export type TransportType = "sse" | "polling" | "pusher" | "ably";
 
 export interface SocketServeConfig {
-  /** Adapter type (e.g., 'nextjs', 'cloudflare', 'netlify') */
-  adapter: "nextjs" | "cloudflare" | "netlify";
+  /** Adapter type (e.g., 'nextjs', 'express', 'cloudflare', 'netlify') */
+  adapter: "nextjs" | "express" | "cloudflare" | "netlify";
   
   /** Redis connection URL */
   redisUrl: string;

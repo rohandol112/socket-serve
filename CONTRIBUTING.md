@@ -1,63 +1,188 @@
-# Contributing to socket-serve
+# Contributing to socket-serve# Contributing to socket-serve
 
-Thank you for your interest in contributing to socket-serve!
 
-## Development Setup
 
-1. Fork and clone the repository
-2. Install dependencies: `npm install`
-3. Build the project: `npm run build`
-4. Run tests: `npm test`
+Thank you for considering contributing to socket-serve! 🎉Thank you for your interest in contributing to socket-serve!
+
+
+
+## Development Setup## Development Setup
+
+
+
+1. **Fork and clone**1. Fork and clone the repository
+
+   ```bash2. Install dependencies: `npm install`
+
+   git clone https://github.com/YOUR_USERNAME/socket-serve.git3. Build the project: `npm run build`
+
+   cd socket-serve4. Run tests: `npm test`
+
+   ```
 
 ## Project Structure
 
-```
-socket-serve/
-├── src/
+2. **Install dependencies**
+
+   ```bash```
+
+   npm installsocket-serve/
+
+   ```├── src/
+
 │   ├── index.ts          # Main export
-│   ├── types.ts          # Core types
-│   ├── server/           # Server-side logic
-│   ├── client/           # Client SDK
-│   ├── redis/            # Redis state management
+
+3. **Start Redis (for testing)**│   ├── types.ts          # Core types
+
+   ```bash│   ├── server/           # Server-side logic
+
+   docker run -d -p 6379:6379 --name redis redis:alpine│   ├── client/           # Client SDK
+
+   ```│   ├── redis/            # Redis state management
+
 │   └── adapters/         # Platform adapters
-├── examples/             # Example implementations
-└── tests/                # Test files
-```
+
+4. **Build the project**├── examples/             # Example implementations
+
+   ```bash└── tests/                # Test files
+
+   npm run build```
+
+   ```
 
 ## Commit Guidelines
 
-We follow conventional commits:
+5. **Run tests**
 
-- `feat:` new feature
+   ```bashWe follow conventional commits:
+
+   npm test
+
+   ```- `feat:` new feature
+
 - `fix:` bug fix
-- `docs:` documentation changes
+
+## Project Structure- `docs:` documentation changes
+
 - `test:` adding tests
-- `refactor:` code refactoring
-- `chore:` maintenance tasks
 
-Example: `feat: add polling transport support`
+```- `refactor:` code refactoring
 
-## Testing
+socket-serve/- `chore:` maintenance tasks
 
-- Write tests for all new features
-- Ensure all tests pass before submitting PR
-- Run `npm test` to execute test suite
+├── src/
 
-## Pull Request Process
+│   ├── index.ts           # Main entry pointExample: `feat: add polling transport support`
 
-1. Create a feature branch from `main`
+│   ├── types.ts           # TypeScript types
+
+│   ├── adapters/          # Platform adapters (Next.js, Express)## Testing
+
+│   ├── server/            # Server-side logic
+
+│   ├── client/            # Browser client SDK- Write tests for all new features
+
+│   └── redis/             # Redis state management- Ensure all tests pass before submitting PR
+
+├── examples/- Run `npm test` to execute test suite
+
+│   ├── nextjs/            # Next.js example
+
+│   └── express/           # Express example## Pull Request Process
+
+└── dist/                  # Compiled output (generated)
+
+```1. Create a feature branch from `main`
+
 2. Make your changes
-3. Add tests if applicable
-4. Update documentation
-5. Submit PR with clear description
 
-## Code Style
+## Development Workflow3. Add tests if applicable
+
+4. Update documentation
+
+1. **Create a branch**5. Submit PR with clear description
+
+   ```bash
+
+   git checkout -b feature/your-feature-name## Code Style
+
+   ```
 
 - Use TypeScript
-- Follow existing code style
-- Run `npm run lint` before committing
-- Use meaningful variable names
+
+2. **Make your changes**- Follow existing code style
+
+   - Edit files in `src/`- Run `npm run lint` before committing
+
+   - Add tests if applicable- Use meaningful variable names
+
+   - Update documentation
 
 ## Questions?
 
-Open an issue or reach out to the maintainers.
+3. **Build and test**
+
+   ```bashOpen an issue or reach out to the maintainers.
+
+   npm run build
+   npm test
+   ```
+
+4. **Test with examples**
+   ```bash
+   cd examples/nextjs
+   npm install
+   npm run dev
+   ```
+
+5. **Commit with conventional commits**
+   ```bash
+   git commit -m "feat: add new feature"
+   git commit -m "fix: resolve issue with X"
+   git commit -m "docs: update README"
+   ```
+
+6. **Push and create PR**
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+## Commit Convention
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting)
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
+
+## Code Style
+
+- **TypeScript**: Strict mode enabled
+- **Formatting**: Prettier (run `npm run format`)
+- **Linting**: ESLint (run `npm run lint`)
+- **Naming**: camelCase for functions, PascalCase for classes
+
+## Testing
+
+- Write tests for new features in `tests/`
+- Ensure all tests pass: `npm test`
+- Aim for >80% coverage
+
+## Pull Request Guidelines
+
+1. **Keep PRs focused** - One feature/fix per PR
+2. **Update documentation** - README, JSDoc comments
+3. **Add tests** - For new functionality
+4. **Describe changes** - Clear PR description
+5. **Link issues** - Reference related issues
+
+## Questions?
+
+- Open an [issue](https://github.com/rohandol112/socket-serve/issues)
+- Start a [discussion](https://github.com/rohandol112/socket-serve/discussions)
+
+Thank you for contributing! 🚀

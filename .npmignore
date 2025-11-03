@@ -1,0 +1,28 @@
+# Development files
+.github/
+examples/
+src/
+tests/
+
+# Config files
+.eslintrc.json
+.prettierrc
+jest.config.js
+tsconfig.json
+
+# Git files
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Misc
+*.log
+.DS_Store
+node_modules/
+
+# Only publish dist/

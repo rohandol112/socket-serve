@@ -38,9 +38,12 @@ export class SocketServer {
     const sessionId = this.generateSessionId();
     const state = await this.stateManager.createSession(sessionId);
     
+    // Delay calling onConnect to ensure SSE is connected first
     if (this.handlers.onConnect) {
-      const socket = new ServerSocketImpl(sessionId, state, this.stateManager);
-      await this.handlers.onConnect(socket);
+      setTimeout(async () => {
+        const socket = new ServerSocketImpl(sessionId, state, this.stateManager);
+        await this.handlers.onConnect!(socket);
+      }, 100);
     }
 
     return { sessionId };

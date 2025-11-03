@@ -1,7 +1,8 @@
 {
   "name": "socket-serve",
   "version": "0.1.0",
-  "description": "Convert traditional WebSockets into serverless-ready sockets",
+  "description": "Real-time socket-like API for serverless platforms. Socket.IO experience without WebSockets.",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {
@@ -16,12 +17,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./client": {
       "types": "./dist/client/index.d.ts",
       "import": "./dist/client/index.js",
-      "require": "./dist/client/index.js"
+      "require": "./dist/client/index.js",
+      "default": "./dist/client/index.js"
     }
   },
   "scripts": {
@@ -36,22 +39,34 @@
   "keywords": [
     "websocket",
     "serverless",
+    "realtime",
+    "socket",
+    "sse",
+    "server-sent-events",
     "redis",
     "nextjs",
     "vercel",
-    "sse",
-    "realtime",
-    "socket"
+    "netlify",
+    "socketio",
+    "socket.io",
+    "pubsub",
+    "chat",
+    "notifications",
+    "real-time",
+    "edge-functions",
+    "cloudflare-workers"
   ],
-  "author": "Rohan Samidha",
+  "author": "Rohan Samidha <rohandol112@gmail.com> (https://github.com/rohandol112)",
   "license": "MIT",
   "devDependencies": {
+    "@types/express": "^5.0.5",
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.6",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
+    "express": "^5.1.0",
     "jest": "^29.7.0",
     "next": "^16.0.1",
     "prettier": "^3.1.1",
