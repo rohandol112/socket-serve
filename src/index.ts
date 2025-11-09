@@ -1,6 +1,6 @@
-import { createNextJSAdapter } from "./adapters/nextjs";
-import { createExpressAdapter } from "./adapters/express";
-import type { SocketServeConfig } from "./types";
+import { createNextJSAdapter } from "./adapters/nextjs.js";
+import { createExpressAdapter } from "./adapters/express.js";
+import type { SocketServeConfig } from "./types.js";
 
 export function serve(config: SocketServeConfig) {
   if (config.adapter === "nextjs") {
@@ -14,5 +14,5 @@ export function serve(config: SocketServeConfig) {
   throw new Error(`Adapter ${config.adapter} not supported yet`);
 }
 
-export * from "./types";
-export { connect } from "./client";
+export * from "./types.js";
+export { connect } from "./client/index.js";

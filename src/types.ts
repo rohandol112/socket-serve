@@ -43,14 +43,18 @@ export interface SocketMessage {
   data: unknown;
   timestamp: number;
   sessionId: string;
+  messageId?: string;
+  requiresAck?: boolean;
 }
 
 export interface ServerSocket {
   id: string;
-  emit(event: string, data: unknown): Promise<void>;
+  emit(event: string, data: unknown, ack?: (response?: unknown) => void): Promise<void>;
   broadcast(event: string, data: unknown): Promise<void>;
+  broadcastToRoom(room: string, event: string, data: unknown): Promise<void>;
   join(room: string): Promise<void>;
   leave(room: string): Promise<void>;
+  getRooms(): Promise<string[]>;
   get<T>(key: string): T | undefined;
   set(key: string, value: unknown): void;
 }
@@ -60,7 +64,7 @@ export interface ClientSocket {
   connected: boolean;
   connect(): Promise<void>;
   disconnect(): void;
-  emit(event: string, data: unknown): void;
+  emit(event: string, data: unknown, ack?: (response?: unknown) => void): void;
   on(event: string, handler: (data: unknown) => void): void;
   off(event: string, handler?: (data: unknown) => void): void;
 }

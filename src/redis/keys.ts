@@ -28,6 +28,10 @@ export class RedisKeys {
   rooms(room: string): string {
     return `${this.prefix}:room:${room}`;
   }
+
+  sessionRooms(sessionId: string): string {
+    return `${this.prefix}:${sessionId}:rooms`;
+  }
 }
 
 export const redisKeys = new RedisKeys();

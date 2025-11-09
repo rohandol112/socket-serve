@@ -1,6 +1,6 @@
 {
   "name": "socket-serve",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "description": "Real-time socket-like API for serverless platforms. Socket.IO experience without WebSockets.",
   "type": "module",
   "main": "dist/index.js",

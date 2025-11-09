@@ -1,5 +1,5 @@
-import { SocketServer } from "../server";
-import type { SocketServeConfig } from "../types";
+import { SocketServer } from "../server/index.js";
+import type { SocketServeConfig } from "../types.js";
 import type { NextRequest } from "next/server";
 
 export function createNextJSAdapter(config: SocketServeConfig) {
@@ -40,12 +40,19 @@ export function createNextJSAdapter(config: SocketServeConfig) {
       async GET(request: NextRequest) {
         const url = new URL(request.url);
         const sessionId = url.searchParams.get("sessionId");
+        const transport = url.searchParams.get("transport") || "sse";
 
         if (!sessionId) {
           return new Response("Missing sessionId", { status: 400 });
         }
 
-        // SSE endpoint
+        // Polling endpoint
+        if (transport === "polling") {
+          const messages = await server.getMessages(sessionId);
+          return Response.json({ messages });
+        }
+
+        // SSE endpoint (default)
         const encoder = new TextEncoder();
         const stream = new ReadableStream({
           async start(controller: ReadableStreamDefaultController) {

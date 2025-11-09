@@ -1,6 +1,6 @@
 import Redis from "ioredis";
-import { redisKeys } from "./keys";
-import type { SessionState, SocketMessage } from "../types";
+import { redisKeys } from "./keys.js";
+import type { SessionState, SocketMessage } from "../types.js";
 
 export class RedisStateManager {
   private redis: Redis;
@@ -92,14 +92,20 @@ export class RedisStateManager {
 
   async joinRoom(sessionId: string, room: string): Promise<void> {
     await this.redis.sadd(redisKeys.rooms(room), sessionId);
+    await this.redis.sadd(redisKeys.sessionRooms(sessionId), room);
   }
 
   async leaveRoom(sessionId: string, room: string): Promise<void> {
     await this.redis.srem(redisKeys.rooms(room), sessionId);
+    await this.redis.srem(redisKeys.sessionRooms(sessionId), room);
   }
 
   async getRoomMembers(room: string): Promise<string[]> {
     return await this.redis.smembers(redisKeys.rooms(room));
+  }
+
+  async getSessionRooms(sessionId: string): Promise<string[]> {
+    return await this.redis.smembers(redisKeys.sessionRooms(sessionId));
   }
 
   async close(): Promise<void> {

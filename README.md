@@ -85,12 +85,18 @@ adapter.onDisconnect((socket) => {
 
 ### Socket API
 
-#### `socket.emit(event, data)`
+#### `socket.emit(event, data, ack?)`
 
-Send event to this specific client.
+Send event to this specific client with optional acknowledgment.
 
 ```typescript
+// Simple emit
 socket.emit('notification', { message: 'Hello!' });
+
+// With acknowledgment
+socket.emit('save-data', { id: 1, value: 'test' }, (response) => {
+  console.log('Client acknowledged:', response);
+});
 ```
 
 #### `socket.broadcast(event, data)`
@@ -101,13 +107,30 @@ Send event to all other connected clients.
 await socket.broadcast('user-joined', { userId: socket.id });
 ```
 
+#### `socket.broadcastToRoom(room, event, data)`
+
+Send event to all clients in a specific room (excluding sender).
+
+```typescript
+await socket.broadcastToRoom('game-1', 'player-moved', { x: 10, y: 20 });
+```
+
 #### `socket.join(room)` / `socket.leave(room)`
 
-Join or leave a room (coming soon).
+Join or leave a room for targeted broadcasting.
 
 ```typescript
 await socket.join('room-123');
 await socket.leave('room-123');
+```
+
+#### `socket.getRooms()`
+
+Get all rooms the socket has joined.
+
+```typescript
+const rooms = await socket.getRooms();
+console.log('Socket is in rooms:', rooms);
 ```
 
 #### `socket.get(key)` / `socket.set(key, value)`
@@ -121,14 +144,18 @@ const username = socket.get<string>('username');
 
 ### Client API
 
-#### `connect(url)`
+#### `connect(url, options?)`
 
-Connect to socket server.
+Connect to socket server with optional configuration.
 
 ```typescript
 import { connect } from 'socket-serve/client';
 
+// SSE transport (default)
 const socket = connect('/api/socket');
+
+// Polling transport (fallback for SSE-incompatible environments)
+const socket = connect('/api/socket', { transport: 'polling' });
 ```
 
 #### `socket.on(event, handler)`
@@ -141,12 +168,22 @@ socket.on('message', (data) => {
 });
 ```
 
-#### `socket.emit(event, data)`
+#### `socket.emit(event, data, ack?)`
 
-Send event to server.
+Send event to server with optional acknowledgment.
 
 ```typescript
+// Simple emit
 socket.emit('chat', { text: 'Hello!' });
+
+// With acknowledgment
+socket.emit('save-data', { id: 1 }, (response) => {
+  if (response instanceof Error) {
+    console.error('Failed:', response.message);
+  } else {
+    console.log('Success:', response);
+  }
+});
 ```
 
 #### `socket.disconnect()`
@@ -161,14 +198,25 @@ socket.disconnect();
 
 ## 🎨 Use Cases
 
-### Chat Applications
+### Chat Applications with Rooms
 ```typescript
-adapter.onMessage('chat', async (socket, data) => {
-  await socket.broadcast('chat', {
-    from: socket.id,
-    text: data.text,
-    timestamp: Date.now()
+adapter.onMessage('join-room', async (socket, data) => {
+  await socket.join(data.roomId);
+  await socket.broadcastToRoom(data.roomId, 'user-joined', {
+    userId: socket.id,
+    username: data.username
   });
+});
+
+adapter.onMessage('chat', async (socket, data) => {
+  const rooms = await socket.getRooms();
+  for (const room of rooms) {
+    await socket.broadcastToRoom(room, 'chat', {
+      from: socket.id,
+      text: data.text,
+      timestamp: Date.now()
+    });
+  }
 });
 ```
 
@@ -185,11 +233,33 @@ adapter.onMessage('notify-all', async (socket, data) => {
 ### Collaborative Tools
 ```typescript
 adapter.onMessage('cursor-move', async (socket, data) => {
-  await socket.broadcast('cursor-update', {
-    userId: socket.id,
-    x: data.x,
-    y: data.y
-  });
+  const rooms = await socket.getRooms();
+  for (const room of rooms) {
+    await socket.broadcastToRoom(room, 'cursor-update', {
+      userId: socket.id,
+      x: data.x,
+      y: data.y
+    });
+  }
+});
+```
+
+### Data Sync with Acknowledgments
+```typescript
+adapter.onMessage('sync-data', async (socket, data, ack) => {
+  try {
+    // Simulate saving data
+    await saveToDatabase(data);
+    
+    // Send acknowledgment back to client
+    if (ack) {
+      ack({ success: true, savedAt: Date.now() });
+    }
+  } catch (error) {
+    if (ack) {
+      ack({ success: false, error: error.message });
+    }
+  }
 });
 ```
 
@@ -797,15 +867,18 @@ serve({
 
 - [x] **v0.1** - Next.js adapter with SSE
 - [x] **v0.2** - Express adapter
-- [ ] **v0.3** - Room-based broadcasting
-- [ ] **v0.4** - Polling transport fallback
-- [ ] **v0.5** - Pusher/Ably adapter
+- [x] **v0.3** - Room-based broadcasting
+- [x] **v0.4** - Polling transport fallback
+- [x] **v0.5** - Message acknowledgments
+- [x] **v0.6** - Exponential backoff reconnection
+- [ ] **v0.7** - Pusher/Ably adapter
 - [ ] **v1.0** - Production ready
-  - [ ] Reconnection with exponential backoff
-  - [ ] Message acknowledgments
+  - [x] Reconnection with exponential backoff
+  - [x] Message acknowledgments
   - [ ] TypeScript strict mode
-  - [ ] Comprehensive tests
+  - [x] Comprehensive tests
   - [ ] Performance benchmarks
+  - [ ] Full documentation
 
 ---
 

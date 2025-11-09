@@ -1,8 +1,17 @@
-import { ClientSocketImpl } from "./socket";
-import type { ClientSocket } from "../types";
+import { ClientSocketImpl } from "./socket.js";
+import type { ClientSocket } from "../types.js";
 
-export function connect(url: string): ClientSocket {
-  const socket = new ClientSocketImpl(url);
+export interface ConnectOptions {
+  transport?: "sse" | "polling";
+  reconnectAttempts?: number;
+  reconnectDelay?: number;
+}
+
+export function connect(url: string, options?: ConnectOptions): ClientSocket {
+  const socket = new ClientSocketImpl(
+    url,
+    options?.transport || "sse"
+  );
   socket.connect();
   return socket;
 }

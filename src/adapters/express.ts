@@ -1,5 +1,5 @@
-import { SocketServer } from "../server";
-import type { SocketServeConfig } from "../types";
+import { SocketServer } from "../server/index.js";
+import type { SocketServeConfig } from "../types.js";
 import type { Request, Response } from "express";
 
 export function createExpressAdapter(config: SocketServeConfig) {
@@ -63,12 +63,26 @@ export function createExpressAdapter(config: SocketServeConfig) {
         // GET /socket/sse?sessionId=xxx - SSE stream
         sse: async (req: Request, res: Response) => {
           const sessionId = req.query.sessionId as string;
+          const transport = (req.query.transport as string) || "sse";
 
           if (!sessionId) {
             res.status(400).json({ error: "Missing sessionId" });
             return;
           }
 
+          // Polling endpoint
+          if (transport === "polling") {
+            try {
+              const messages = await server.getMessages(sessionId);
+              res.json({ messages });
+            } catch (error) {
+              console.error("Polling error:", error);
+              res.status(500).json({ error: "Failed to get messages" });
+            }
+            return;
+          }
+
+          // SSE stream (default)
           // Set SSE headers
           res.setHeader("Content-Type", "text/event-stream");
           res.setHeader("Cache-Control", "no-cache");

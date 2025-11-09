@@ -1,12 +1,12 @@
-import { RedisStateManager } from "../redis/state-manager";
-import { ServerSocketImpl } from "./socket";
+import { RedisStateManager } from "../redis/state-manager.js";
+import { ServerSocketImpl } from "./socket.js";
 import type {
   SocketServeConfig,
   SocketHandlers,
   ConnectHandler,
   MessageHandler,
   DisconnectHandler,
-} from "../types";
+} from "../types.js";
 import { randomBytes } from "crypto";
 
 export class SocketServer {
