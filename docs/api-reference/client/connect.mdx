@@ -1,0 +1,60 @@
+---
+title: 'connect()'
+description: 'Client connection function'
+---
+
+## Usage
+
+```typescript
+import { connect } from 'socket-serve/client';
+
+const socket = connect(url, options);
+```
+
+## Parameters
+
+### url
+
+Server endpoint URL (string, required)
+
+```typescript
+// Absolute URL
+const socket = connect('https://api.example.com/socket');
+
+// Relative URL
+const socket = connect('/api/socket');
+```
+
+### options
+
+Configuration object (optional)
+
+```typescript
+interface ConnectOptions {
+  transport?: 'sse' | 'polling';
+}
+```
+
+**transport**: Transport mechanism
+- `'sse'` - Server-Sent Events (default)
+- `'polling'` - HTTP polling
+
+## Examples
+
+### Default (SSE)
+
+```typescript
+const socket = connect('/api/socket');
+```
+
+### Force Polling
+
+```typescript
+const socket = connect('/api/socket', {
+  transport: 'polling'
+});
+```
+
+## Returns
+
+`ClientSocket` instance

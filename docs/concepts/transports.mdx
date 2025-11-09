@@ -1,0 +1,83 @@
+---
+title: 'Transports'
+description: 'SSE and HTTP polling transport mechanisms'
+---
+
+## Transport Overview
+
+socket-serve supports two transport mechanisms for server-to-client communication:
+
+1. **Server-Sent Events (SSE)** - Primary transport
+2. **HTTP Polling** - Fallback transport
+
+## Server-Sent Events (SSE)
+
+SSE provides a persistent HTTP connection for server-to-client streaming.
+
+### Characteristics
+
+- Long-lived GET request
+- Unidirectional (server to client only)
+- Automatic browser reconnection
+- Lower latency (50-200ms)
+- Built into modern browsers
+
+### Implementation
+
+```typescript
+// Client establishes SSE connection
+const eventSource = new EventSource('/api/socket/events?sessionId=xyz');
+
+eventSource.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  handleMessage(message);
+};
+```
+
+### Limitations
+
+- Not supported in all environments
+- Some proxies may buffer SSE
+- Connection count limits per domain
+
+## HTTP Polling
+
+HTTP polling makes periodic requests to check for new messages.
+
+### Characteristics
+
+- Regular GET requests (1-second interval)
+- Works in all environments
+- Higher latency (~1000ms)
+- More resource-intensive
+
+### Implementation
+
+```typescript
+// Client polls for messages
+setInterval(async () => {
+  const response = await fetch('/api/socket/poll?sessionId=xyz');
+  const messages = await response.json();
+  messages.forEach(handleMessage);
+}, 1000);
+```
+
+### Transport Selection
+
+The client automatically selects the appropriate transport:
+
+```typescript
+import { connect } from 'socket-serve/client';
+
+// Default: SSE with automatic fallback to polling
+const socket = connect('/api/socket');
+
+// Force polling transport
+const socket = connect('/api/socket', { transport: 'polling' });
+```
+
+## Next Steps
+
+- [Architecture](/concepts/architecture) - System design overview
+- [State Management](/concepts/state-management) - Redis state handling
+- [API Reference](/api-reference/introduction) - Complete API documentation

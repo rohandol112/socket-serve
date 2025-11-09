@@ -1,0 +1,35 @@
+---
+title: 'Chat Application'
+description: 'Real-time chat application example'
+---
+
+## Features
+
+- Multiple chat rooms
+- User join/leave notifications
+- Message history
+- Room member list
+
+## Architecture
+
+```typescript
+// Server
+server.on('connection', (socket) => {
+  socket.on('join-room', ({ room, username }) => {
+    socket.join(room);
+    socket.broadcastToRoom(room, 'user-joined', { username });
+  });
+  
+  socket.on('send-message', ({ room, message }) => {
+    socket.broadcastToRoom(room, 'new-message', {
+      username: socket.id,
+      message,
+      timestamp: Date.now()
+    });
+  });
+});
+```
+
+## Implementation
+
+Full example available in repository `examples/chat-app/`

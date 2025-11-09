@@ -1,0 +1,28 @@
+---
+title: 'Client API'
+description: 'Client-side API reference'
+---
+
+## connect
+
+Establishes connection to socket server.
+
+```typescript
+import { connect } from 'socket-serve/client';
+
+const socket = connect(url, options);
+```
+
+### Parameters
+
+- `url` (string, required) - Server endpoint URL
+- `options.transport` (string, optional) - Transport type: `'sse'` or `'polling'`
+
+### Returns
+
+`ClientSocket` instance
+
+## Next Steps
+
+- [Socket Methods](/api-reference/client/socket-methods) - Client socket methods
+- [Events](/api-reference/client/events) - Event handling

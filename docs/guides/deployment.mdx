@@ -1,0 +1,216 @@
+---
+title: 'Deployment'
+description: 'Production deployment guide'
+---
+
+## Prerequisites
+
+- Redis instance (Upstash recommended for serverless)
+- Application built and tested locally
+- Environment variables configured
+
+## Vercel (Next.js)
+
+### Setup
+
+1. Install Vercel CLI:
+   ```bash
+   npm i -g vercel
+   ```
+
+2. Configure environment:
+   ```bash
+   vercel env add REDIS_URL production
+   ```
+
+3. Deploy:
+   ```bash
+   vercel deploy --prod
+   ```
+
+### Configuration
+
+`vercel.json`:
+
+```json
+{
+  "env": {
+    "REDIS_URL": "@redis-url"
+  }
+}
+```
+
+## AWS Lambda
+
+### Using Serverless Framework
+
+`serverless.yml`:
+
+```yaml
+service: socket-serve-app
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  environment:
+    REDIS_URL: ${env:REDIS_URL}
+
+functions:
+  api:
+    handler: handler.main
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+```
+
+## Docker
+
+### Dockerfile
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --production
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - redis
+  
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+```
+
+## Environment Variables
+
+Production checklist:
+
+```bash
+# Required
+REDIS_URL=rediss://...
+
+# Optional
+NODE_ENV=production
+PORT=3000
+```
+
+## Redis Configuration
+
+### Upstash (Recommended)
+
+Production-ready managed Redis:
+
+1. Create database at [console.upstash.com](https://console.upstash.com)
+2. Copy connection URL
+3. Add to deployment platform
+
+### AWS ElastiCache
+
+```bash
+aws elasticache create-cache-cluster \
+  --cache-cluster-id production-redis \
+  --cache-node-type cache.t3.micro \
+  --engine redis
+```
+
+## Monitoring
+
+### Health Check Endpoint
+
+```typescript
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+```
+
+### Redis Connection Check
+
+```typescript
+redis.ping().then(() => {
+  console.log('Redis connected');
+}).catch(err => {
+  console.error('Redis connection failed:', err);
+});
+```
+
+## Performance
+
+### Connection Pooling
+
+```typescript
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  redisOptions: {
+    maxRetriesPerRequest: 3,
+    enableReadyCheck: true,
+    enableOfflineQueue: false
+  }
+});
+```
+
+### Scaling
+
+Horizontal scaling is automatic with Redis-backed state. No sticky sessions required.
+
+## Security
+
+### TLS/SSL
+
+Always use `rediss://` (SSL) in production:
+
+```bash
+REDIS_URL=rediss://default:password@host:6379
+```
+
+### Authentication
+
+Configure Redis password:
+
+```typescript
+redisOptions: {
+  password: process.env.REDIS_PASSWORD
+}
+```
+
+## Troubleshooting
+
+**Connection timeouts:**
+Increase timeout values in production:
+
+```typescript
+redisOptions: {
+  connectTimeout: 10000,
+  commandTimeout: 5000
+}
+```
+
+**Memory issues:**
+Configure Redis eviction policy:
+
+```bash
+redis-cli CONFIG SET maxmemory-policy allkeys-lru
+```
+
+## Next Steps
+
+- [Redis Setup](/guides/redis-setup) - Detailed Redis configuration
+- [Architecture](/concepts/architecture) - System design
+- [Troubleshooting](/advanced/troubleshooting) - Common issues

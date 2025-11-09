@@ -1,0 +1,74 @@
+---
+title: 'Socket Methods'
+description: 'Client socket methods and properties'
+---
+
+## Methods
+
+### emit
+
+Send event to server.
+
+```typescript
+socket.emit(event: string, data: any, ackCallback?: Function): void
+```
+
+**Examples:**
+
+```typescript
+// Simple emit
+socket.emit('message', { text: 'Hello' });
+
+// With acknowledgment
+socket.emit('getData', { id: 123 }, (response, error) => {
+  if (error) {
+    console.error('Timeout');
+  } else {
+    console.log('Response:', response);
+  }
+});
+```
+
+### on
+
+Listen for server events.
+
+```typescript
+socket.on(event: string, handler: (data: any) => void): void
+```
+
+**Example:**
+
+```typescript
+socket.on('message', (data) => {
+  console.log('Received:', data);
+});
+```
+
+### disconnect
+
+Disconnect from server.
+
+```typescript
+socket.disconnect(): void
+```
+
+## Properties
+
+### id
+
+Session identifier (string | null)
+
+```typescript
+console.log('Session ID:', socket.id);
+```
+
+### connected
+
+Connection status (boolean)
+
+```typescript
+if (socket.connected) {
+  console.log('Connected');
+}
+```

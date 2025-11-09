@@ -1,0 +1,40 @@
+---
+title: 'Scaling'
+description: 'Horizontal scaling and performance optimization'
+---
+
+## Horizontal Scaling
+
+socket-serve scales horizontally by design:
+
+- Stateless serverless functions
+- Redis-backed shared state
+- No sticky sessions required
+- Automatic load distribution
+
+## Redis Configuration
+
+Production Redis setup:
+
+```typescript
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  redisOptions: {
+    maxRetriesPerRequest: 3,
+    enableOfflineQueue: false,
+    connectTimeout: 10000
+  }
+});
+```
+
+## Performance Tuning
+
+- Use Redis cluster for high throughput
+- Configure connection pooling
+- Implement rate limiting
+- Monitor Redis memory usage
+
+## Next Steps
+
+- [Deployment](/guides/deployment) - Production deployment
+- [Architecture](/concepts/architecture) - System design

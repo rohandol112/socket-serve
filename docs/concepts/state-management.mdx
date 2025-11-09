@@ -1,0 +1,115 @@
+---
+title: 'State Management'
+description: 'Redis-backed state management for serverless scaling'
+---
+
+## Overview
+
+socket-serve uses Redis for distributed state management across serverless instances.
+
+## State Components
+
+### Session State
+
+Each client connection maintains session data:
+
+```typescript
+interface SessionState {
+  id: string;              // Unique session identifier
+  rooms: Set<string>;      // Joined rooms
+  connected: boolean;      // Connection status
+  lastSeen: number;        // Last activity timestamp
+}
+```
+
+**Redis Keys:**
+- `session:{sessionId}` - Session metadata
+- `session:{sessionId}:rooms` - Set of room memberships
+
+### Message Queue
+
+Messages awaiting delivery are queued in Redis:
+
+```typescript
+interface QueuedMessage {
+  id: string;              // Message identifier
+  event: string;           // Event name
+  data: any;               // Message payload
+  timestamp: number;       // Creation time
+  requiresAck?: boolean;   // Acknowledgment flag
+}
+```
+
+**Redis Keys:**
+- `messages:{sessionId}` - List of pending messages
+- `ack:{messageId}` - Acknowledgment tracking
+
+### Room Membership
+
+Room-to-session mappings for broadcasting:
+
+**Redis Keys:**
+- `room:{roomName}` - Set of session IDs in room
+- `session:{sessionId}:rooms` - Reverse mapping
+
+## Pub/Sub
+
+Redis pub/sub enables message broadcasting across serverless instances:
+
+```typescript
+// Publishing
+redis.publish('room:lobby', JSON.stringify(message));
+
+// Subscribing
+redis.subscribe('room:lobby', (message) => {
+  broadcastToLocalClients(message);
+});
+```
+
+## State Lifecycle
+
+### Connection
+
+1. Generate session ID
+2. Create session in Redis
+3. Initialize message queue
+4. Subscribe to session channel
+
+### Message Handling
+
+1. Queue message in Redis
+2. Publish to session channel
+3. Deliver via active transport
+4. Remove from queue on delivery
+
+### Disconnection
+
+1. Unsubscribe from channels
+2. Leave all rooms
+3. Clean up session data
+4. Remove message queue
+
+## Configuration
+
+```typescript
+import { createSocketServer } from 'socket-serve';
+
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  redisOptions: {
+    // Connection pooling
+    maxRetriesPerRequest: 3,
+    
+    // Retry strategy
+    retryStrategy(times) {
+      return Math.min(times * 50, 2000);
+    }
+  }
+});
+```
+
+## Next Steps
+
+- [Architecture](/concepts/architecture) - System design
+- [Redis Setup](/guides/redis-setup) - Configuration guide
+- [Rooms](/concepts/rooms) - Room broadcasting

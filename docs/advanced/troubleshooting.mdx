@@ -1,0 +1,143 @@
+---
+title: 'Troubleshooting'
+description: 'Common issues and solutions'
+---
+
+## Connection Issues
+
+### Redis Connection Failed
+
+**Symptoms:** Cannot connect to Redis
+
+**Solutions:**
+
+```bash
+# Verify Redis is running
+redis-cli ping
+
+# Check connection URL
+echo $REDIS_URL
+
+# Test connection
+redis-cli -u $REDIS_URL ping
+```
+
+### Client Not Connecting
+
+**Symptoms:** Client stuck in connecting state
+
+**Solutions:**
+
+- Verify API route path matches client URL
+- Check CORS configuration
+- Verify Redis is accessible
+- Check browser console for errors
+
+## Message Issues
+
+### Messages Not Received
+
+**Symptoms:** emit() called but no event triggered
+
+**Solutions:**
+
+- Verify event names match exactly (case-sensitive)
+- Check both client and server are listening
+- Confirm client is connected (`socket.connected`)
+
+### Acknowledgment Timeout
+
+**Symptoms:** Ack callbacks timeout after 5 seconds
+
+**Solutions:**
+
+- Ensure server calls ack callback
+- Check for server-side errors
+- Verify Redis connectivity
+
+## Performance Issues
+
+### High Latency
+
+**Symptoms:** Slow message delivery
+
+**Solutions:**
+
+- Check Redis latency: `redis-cli --latency`
+- Verify network connectivity
+- Consider switching from polling to SSE
+- Check Redis memory usage
+
+### Memory Leaks
+
+**Symptoms:** Increasing memory usage
+
+**Solutions:**
+
+- Ensure proper cleanup on disconnect
+- Set TTL for Redis keys
+- Monitor active connections
+- Check for event listener leaks
+
+## Redis Issues
+
+### Memory Full
+
+**Symptoms:** Redis out of memory
+
+**Solutions:**
+
+```bash
+# Check memory
+redis-cli INFO memory
+
+# Set eviction policy
+redis-cli CONFIG SET maxmemory-policy allkeys-lru
+
+# Set memory limit
+redis-cli CONFIG SET maxmemory 256mb
+```
+
+### Connection Pool Exhausted
+
+**Symptoms:** "Connection pool exhausted" errors
+
+**Solutions:**
+
+```typescript
+redisOptions: {
+  maxRetriesPerRequest: 3,
+  enableOfflineQueue: false,
+  lazyConnect: true
+}
+```
+
+## Debugging
+
+### Enable Logging
+
+```typescript
+server.on('connection', (socket) => {
+  console.log('[DEBUG] Connection:', socket.id);
+  
+  socket.on('*', (event, data) => {
+    console.log('[DEBUG] Event:', event, data);
+  });
+});
+```
+
+### Monitor Redis
+
+```bash
+# Watch all Redis commands
+redis-cli MONITOR
+
+# Check active keys
+redis-cli KEYS "session:*"
+```
+
+## Next Steps
+
+- [Architecture](/concepts/architecture) - Understanding the system
+- [Deployment](/guides/deployment) - Production setup
+- [Security](/advanced/security) - Security best practices

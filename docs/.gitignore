@@ -1,0 +1,25 @@
+# Build output
+.next/
+.docusaurus/
+.cache/
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Mintlify
+.mintlify/

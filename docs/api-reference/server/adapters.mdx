@@ -1,0 +1,32 @@
+---
+title: 'Adapters'
+description: 'Framework integration adapters'
+---
+
+## Next.js Adapter
+
+```typescript
+import { createNextJSAdapter } from 'socket-serve/adapters';
+
+export const { GET, POST } = createNextJSAdapter(server);
+```
+
+Use in `app/api/socket/[[...path]]/route.ts`
+
+## Express Adapter
+
+```typescript
+import { createExpressAdapter } from 'socket-serve/adapters';
+
+const adapter = createExpressAdapter(server);
+app.use('/socket', adapter);
+```
+
+## Custom Adapters
+
+Adapters handle:
+- HTTP request routing
+- Session management
+- Client file serving
+
+See existing adapters for implementation reference.

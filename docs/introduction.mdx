@@ -1,0 +1,121 @@
+---
+title: Introduction
+description: 'Real-time communication library for serverless environments'
+---
+
+# socket-serve
+
+socket-serve is a TypeScript library that provides real-time, bidirectional communication for serverless platforms. It offers a socket.io-compatible API using HTTP-based transports (SSE and polling) instead of WebSockets.
+
+## Overview
+
+Traditional WebSocket libraries require persistent connections, which are incompatible with serverless architectures. socket-serve addresses this limitation by using:
+
+- **Server-Sent Events (SSE)** for server-to-client communication
+- **HTTP POST** for client-to-server communication  
+- **Redis** for state management and pub/sub across serverless instances
+- **Automatic reconnection** with exponential backoff
+- **Message acknowledgments** for request/response patterns
+
+## Features
+
+- Serverless-first architecture (no persistent connections)
+- Multiple transport support (SSE primary, polling fallback)
+- Room-based broadcasting
+- Message acknowledgments with timeout handling
+- TypeScript support with full type definitions
+- Framework adapters for Next.js and Express
+- Automatic client reconnection
+
+## Quick Example
+
+### Server (Next.js)
+
+```typescript
+import { createSocketServer } from 'socket-serve';
+import { createNextJSAdapter } from 'socket-serve/adapters';
+
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!
+});
+
+server.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  
+  socket.on('message', (data) => {
+    socket.emit('response', { received: data });
+  });
+  
+  socket.join('lobby');
+  socket.broadcastToRoom('lobby', 'user-joined', { userId: socket.id });
+});
+
+export const { GET, POST } = createNextJSAdapter(server);
+```
+
+### Client (Browser)
+
+```typescript
+import { connect } from 'socket-serve/client';
+
+const socket = connect('https://your-app.vercel.app/api/socket');
+
+socket.on('connect', () => {
+  console.log('Connected:', socket.id);
+});
+
+socket.emit('message', { text: 'Hello!' });
+
+socket.on('response', (data) => {
+  console.log('Received:', data);
+});
+```
+
+## Architecture
+
+The library uses HTTP-based transports instead of WebSockets:
+
+**Client to Server**: HTTP POST requests
+**Server to Client**: Server-Sent Events (SSE) or HTTP polling
+**State Management**: Redis for session state and pub/sub
+**Broadcasting**: Redis pub/sub for multi-instance coordination
+
+See [Architecture](/concepts/architecture) for detailed information.
+
+## When to Use
+
+**Use socket-serve when:**
+- Deploying to serverless platforms (Vercel, AWS Lambda, etc.)
+- WebSocket connections are blocked by infrastructure
+- Horizontal scaling without sticky sessions is required
+- Redis is already part of your stack
+
+**Consider alternatives when:**
+- Running on traditional servers with WebSocket support
+- Ultra-low latency is critical (WebSockets provide lower latency)
+- Redis infrastructure is not available
+
+## Comparison with WebSockets
+
+| Aspect | WebSocket | socket-serve |
+|--------|-----------|--------------|
+| Connection Type | Persistent TCP | HTTP-based |
+| Serverless Support | No | Yes |
+| Latency | 10-50ms | 50-200ms (SSE) / 1000ms (polling) |
+| Infrastructure | Simple | Requires Redis |
+| Proxy Compatibility | Variable | High |
+| Scaling | Requires sticky sessions | Stateless |
+
+## Documentation
+
+- [Installation](/installation) - Setup and configuration
+- [Quickstart](/quickstart) - Build your first application
+- [API Reference](/api-reference/introduction) - Complete API documentation
+- [Examples](/examples/introduction) - Sample applications
+- [Concepts](/concepts/architecture) - How it works
+
+## Resources
+
+- GitHub: [rohandol112/socket-serve](https://github.com/rohandol112/socket-serve)
+- npm: [socket-serve](https://www.npmjs.com/package/socket-serve)
+- Issues: [GitHub Issues](https://github.com/rohandol112/socket-serve/issues)

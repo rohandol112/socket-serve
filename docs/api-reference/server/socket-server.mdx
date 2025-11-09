@@ -1,0 +1,61 @@
+---
+title: 'SocketServer'
+description: 'Main server class'
+---
+
+## Constructor
+
+```typescript
+import { createSocketServer } from 'socket-serve';
+
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!
+});
+```
+
+## Events
+
+### connection
+
+Emitted when client connects.
+
+```typescript
+server.on('connection', (socket: ServerSocket) => {
+  console.log('Connected:', socket.id);
+});
+```
+
+## Configuration
+
+### Basic
+
+```typescript
+const server = createSocketServer({
+  redisUrl: 'redis://localhost:6379'
+});
+```
+
+### With Options
+
+```typescript
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  redisOptions: {
+    password: 'secret',
+    db: 0,
+    maxRetriesPerRequest: 3
+  }
+});
+```
+
+### Custom Redis Instance
+
+```typescript
+import Redis from 'ioredis';
+
+const redis = new Redis(process.env.REDIS_URL!);
+
+const server = createSocketServer({
+  redis
+});
+```

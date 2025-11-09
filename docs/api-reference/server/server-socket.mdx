@@ -1,0 +1,67 @@
+---
+title: 'ServerSocket'
+description: 'Individual client socket API'
+---
+
+## Methods
+
+### emit
+
+Send event to client.
+
+```typescript
+socket.emit(event: string, data: any, ackCallback?: Function): void
+```
+
+### on
+
+Listen for client events.
+
+```typescript
+socket.on(event: string, handler: (data: any, ack?: Function) => void): void
+```
+
+### join
+
+Join a room.
+
+```typescript
+socket.join(room: string): Promise<void>
+```
+
+### leave
+
+Leave a room.
+
+```typescript
+socket.leave(room: string): Promise<void>
+```
+
+### getRooms
+
+Get all joined rooms.
+
+```typescript
+socket.getRooms(): Set<string>
+```
+
+### broadcastToRoom
+
+Send event to all clients in room.
+
+```typescript
+socket.broadcastToRoom(room: string, event: string, data: any): void
+```
+
+### disconnect
+
+Disconnect client.
+
+```typescript
+socket.disconnect(): void
+```
+
+## Properties
+
+- `id` (string) - Unique session identifier
+- `connected` (boolean) - Connection status

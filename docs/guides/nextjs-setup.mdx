@@ -1,0 +1,135 @@
+---
+title: 'Next.js Setup'
+description: 'Integration guide for Next.js App Router'
+---
+
+## Installation
+
+```bash
+npm install socket-serve ioredis
+```
+
+## Server Setup
+
+Create catch-all API route at `app/api/socket/[[...path]]/route.ts`:
+
+```typescript
+import { createSocketServer } from 'socket-serve';
+import { createNextJSAdapter } from 'socket-serve/adapters';
+
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!
+});
+
+server.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  
+  socket.on('message', (data) => {
+    socket.emit('response', { echo: data });
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+export const { GET, POST } = createNextJSAdapter(server);
+```
+
+## Environment Configuration
+
+Create `.env.local`:
+
+```bash
+REDIS_URL=redis://localhost:6379
+```
+
+## Client Component
+
+Create `app/components/SocketClient.tsx`:
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { connect, ClientSocket } from 'socket-serve/client';
+
+export default function SocketClient() {
+  const [socket, setSocket] = useState<ClientSocket | null>(null);
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    const newSocket = connect('/api/socket');
+    
+    newSocket.on('connect', () => {
+      setConnected(true);
+    });
+    
+    newSocket.on('disconnect', () => {
+      setConnected(false);
+    });
+    
+    setSocket(newSocket);
+    
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
+
+  return (
+    <div>
+      <p>Status: {connected ? 'Connected' : 'Disconnected'}</p>
+    </div>
+  );
+}
+```
+
+## Usage in Page
+
+```tsx
+import SocketClient from './components/SocketClient';
+
+export default function Home() {
+  return (
+    <main>
+      <SocketClient />
+    </main>
+  );
+}
+```
+
+## Development
+
+```bash
+npm run dev
+```
+
+Navigate to `http://localhost:3000`
+
+## Deployment
+
+### Vercel
+
+1. Add environment variable:
+   ```bash
+   vercel env add REDIS_URL production
+   ```
+
+2. Deploy:
+   ```bash
+   vercel deploy
+   ```
+
+### Configuration
+
+For production, use managed Redis (Upstash recommended):
+
+```bash
+REDIS_URL=rediss://default:xxx@xxx.upstash.io:6379
+```
+
+## Next Steps
+
+- [Express Setup](/guides/express-setup) - Express.js integration
+- [Redis Setup](/guides/redis-setup) - Redis configuration
+- [Deployment](/guides/deployment) - Production deployment

@@ -1,0 +1,220 @@
+---
+title: 'Installation'
+description: 'Package installation and configuration'
+---
+
+## Installation
+
+Install socket-serve and its Redis client dependency:
+
+<CodeGroup>
+
+```bash npm
+npm install socket-serve ioredis
+```
+
+```bash yarn
+yarn add socket-serve ioredis
+```
+
+```bash pnpm
+pnpm add socket-serve ioredis
+```
+
+</CodeGroup>
+
+## Requirements
+
+- Node.js 16 or higher
+- Redis 6 or higher
+- TypeScript 5+ (optional)
+
+## Redis Setup
+
+Redis is required for state management and pub/sub. Configuration options:
+
+### Upstash (Serverless)
+
+Managed Redis service optimized for serverless:
+
+1. Create account at [console.upstash.com](https://console.upstash.com/)
+2. Create database
+3. Copy connection URL
+4. Configure environment:
+
+```bash
+REDIS_URL=rediss://default:xxxxx@xxxxx.upstash.io:6379
+```
+
+### Local Redis (Development)
+
+Install Redis locally for development:
+
+<CodeGroup>
+
+```bash macOS
+brew install redis
+brew services start redis
+```
+
+```bash Ubuntu
+sudo apt-get install redis-server
+sudo systemctl start redis
+```
+
+```bash Windows
+# Use WSL or Docker
+docker run -d -p 6379:6379 redis:latest
+```
+
+</CodeGroup>
+
+Then set your environment variable:
+
+```bash
+REDIS_URL=redis://localhost:6379
+```
+
+### Docker
+
+Docker Compose configuration:
+
+```yaml docker-compose.yml
+version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
+```
+
+```bash
+docker-compose up -d
+```
+
+### Cloud Providers
+
+- AWS ElastiCache
+- Google Cloud Memorystore
+- Azure Cache for Redis
+- Redis Cloud
+
+## Environment Variables
+
+Create `.env.local` (Next.js) or `.env`:
+
+```bash
+REDIS_URL=redis://localhost:6379
+REDIS_PASSWORD=your-password-here
+PORT=3000
+```
+
+**Production:** Use platform-specific environment variable configuration (Vercel, AWS Lambda, etc.).
+
+## TypeScript Configuration
+
+Type definitions are included. Required `tsconfig.json` settings:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true
+  }
+}
+```
+
+## Import Paths
+
+socket-serve uses subpath exports for clean imports:
+
+```typescript
+// Core server
+import { createSocketServer } from 'socket-serve';
+
+// Adapters
+import { createNextJSAdapter } from 'socket-serve/adapters';
+import { createExpressAdapter } from 'socket-serve/adapters';
+
+// Client SDK
+import { connect } from 'socket-serve/client';
+
+// Types (if needed)
+import type { ServerSocket, SocketMessage } from 'socket-serve/types';
+```
+
+## Verification
+
+### Redis Connection
+
+```bash
+# If using local Redis
+redis-cli ping
+# Should return: PONG
+
+# If using Upstash/remote Redis
+redis-cli -u $REDIS_URL ping
+# Should return: PONG
+```
+
+### Test Installation
+
+`test-socket.ts`:
+
+```typescript
+import { createSocketServer } from 'socket-serve';
+
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!
+});
+
+server.on('connection', (socket) => {
+  console.log('✅ socket-serve is working!');
+});
+
+console.log('Server initialized');
+```
+
+```bash
+REDIS_URL=redis://localhost:6379 node --loader tsx test-socket.ts
+```
+
+## Next Steps
+
+- [Quickstart](/quickstart) - Basic usage examples
+- [Next.js Integration](/guides/nextjs-setup) - Next.js setup
+- [Express Integration](/guides/express-setup) - Express.js setup
+- [Architecture](/concepts/architecture) - System design
+
+## Troubleshooting
+
+**Module not found:**
+```bash
+npm install socket-serve ioredis
+```
+
+**Redis connection refused:**
+```bash
+redis-cli ping
+redis-server  # if not running
+```
+
+**TypeScript errors:**
+Set `"moduleResolution": "bundler"` or `"node16"` in `tsconfig.json`
+
+**Next.js import errors:**
+Add to `next.config.js`:
+```javascript
+module.exports = {
+  transpilePackages: ['socket-serve']
+};
+```

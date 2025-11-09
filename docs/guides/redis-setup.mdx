@@ -1,0 +1,544 @@
+---
+title: 'Redis Configuration'
+description: 'Redis setup and configuration for development and production'
+---
+
+## Overview
+
+socket-serve requires Redis for:
+- Session state storage
+- Pub/sub message broadcasting
+- Room membership tracking
+
+## Development
+
+### Upstash
+
+Managed serverless Redis service.
+
+#### Configuration
+
+1. **Account Setup**
+   - Navigate to [console.upstash.com](https://console.upstash.com/)
+   - Create account
+
+2. **Database Creation**
+   - Create new database
+   - Select region
+   - Copy connection URL
+
+3. **Environment Configuration**
+   
+   `.env.local`:
+   ```bash
+   REDIS_URL=rediss://default:PASSWORD@HOST.upstash.io:6379
+   ```
+
+4. **Verification**
+   
+   ```typescript
+   import { createSocketServer } from 'socket-serve';
+   
+   const server = createSocketServer({
+     redisUrl: process.env.REDIS_URL!
+   });
+   ```
+
+### Local Redis
+
+**macOS:**
+
+```bash
+brew install redis
+brew services start redis
+redis-cli ping
+```
+
+**Ubuntu/Debian:**
+
+```bash
+sudo apt-get update
+sudo apt-get install redis-server
+sudo systemctl start redis
+redis-cli ping
+```
+
+**Windows:**
+
+Use WSL or Docker:
+```bash
+# WSL
+sudo apt-get install redis-server
+redis-server
+
+# Docker
+docker run -d -p 6379:6379 redis:latest
+```
+
+**Environment:**
+```bash
+REDIS_URL=redis://localhost:6379
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  redis-data:
+```
+
+Start Redis:
+```bash
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs redis
+
+# Stop
+docker-compose down
+```
+
+**Environment:**
+```bash
+REDIS_URL=redis://localhost:6379
+```
+
+## Production Setup
+
+### Option 1: Upstash (Recommended for Serverless)
+
+#### Why Upstash for Production?
+
+- **Serverless-native**: Pay per request, scales to zero
+- **Global distribution**: Multi-region support
+- **High availability**: Built-in redundancy
+- **No connection limits**: Perfect for serverless functions
+- **Low latency**: Optimized for serverless platforms
+
+#### Production Configuration
+
+1. **Upgrade Plan** (if needed)
+   - Free tier: 10,000 requests/day
+   - Pay-as-you-go: $0.20 per 100K requests
+   - Pro: Fixed pricing with higher limits
+
+2. **Enable Multi-Region** (optional)
+   - Global database for worldwide low latency
+   - Read replicas in multiple regions
+
+3. **Set Production Environment Variables**
+
+   **Vercel:**
+   ```bash
+   vercel env add REDIS_URL production
+   # Paste your Upstash URL
+   ```
+
+   **Netlify:**
+   ```bash
+   netlify env:set REDIS_URL "rediss://..."
+   ```
+
+   **AWS Lambda:**
+   - Add to Lambda environment variables or Secrets Manager
+
+### Option 2: AWS ElastiCache
+
+For AWS deployments:
+
+```bash
+# Create ElastiCache cluster
+aws elasticache create-cache-cluster \
+  --cache-cluster-id socket-serve-prod \
+  --cache-node-type cache.t3.micro \
+  --engine redis \
+  --num-cache-nodes 1
+
+# Get endpoint
+aws elasticache describe-cache-clusters \
+  --cache-cluster-id socket-serve-prod \
+  --show-cache-node-info
+```
+
+**Environment:**
+```bash
+REDIS_URL=redis://your-cluster.cache.amazonaws.com:6379
+```
+
+### Option 3: Google Cloud Memorystore
+
+```bash
+# Create Redis instance
+gcloud redis instances create socket-serve-prod \
+  --size=1 \
+  --region=us-central1 \
+  --redis-version=redis_6_x
+
+# Get connection info
+gcloud redis instances describe socket-serve-prod \
+  --region=us-central1
+```
+
+### Option 4: Azure Cache for Redis
+
+```bash
+# Create resource group
+az group create --name socket-serve --location eastus
+
+# Create Redis cache
+az redis create \
+  --resource-group socket-serve \
+  --name socket-serve-prod \
+  --location eastus \
+  --sku Basic \
+  --vm-size c0
+
+# Get connection string
+az redis list-keys \
+  --resource-group socket-serve \
+  --name socket-serve-prod
+```
+
+## Configuration Options
+
+### Basic Connection
+
+```typescript
+import { createSocketServer } from 'socket-serve';
+
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!
+});
+```
+
+### With Authentication
+
+```typescript
+const server = createSocketServer({
+  redisUrl: 'redis://localhost:6379',
+  redisOptions: {
+    password: 'your-password',
+    db: 0
+  }
+});
+```
+
+### With TLS
+
+```typescript
+const server = createSocketServer({
+  redisUrl: 'rediss://your-host:6379', // Note: rediss://
+  redisOptions: {
+    tls: {
+      rejectUnauthorized: false // For self-signed certs
+    }
+  }
+});
+```
+
+### Connection Pool
+
+```typescript
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  redisOptions: {
+    maxRetriesPerRequest: 3,
+    retryStrategy(times) {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+    lazyConnect: true
+  }
+});
+```
+
+### Redis Cluster
+
+```typescript
+import Redis from 'ioredis';
+
+const redis = new Redis.Cluster([
+  { host: 'node1', port: 6379 },
+  { host: 'node2', port: 6379 },
+  { host: 'node3', port: 6379 }
+]);
+
+const server = createSocketServer({
+  redis // Pass Redis instance directly
+});
+```
+
+## Testing Connection
+
+### Test Script
+
+Create `test-redis.ts`:
+
+```typescript
+import Redis from 'ioredis';
+
+async function testRedis() {
+  const redis = new Redis(process.env.REDIS_URL!);
+  
+  try {
+    // Test basic operations
+    console.log('Testing Redis connection...');
+    
+    await redis.set('test:key', 'Hello Redis!');
+    const value = await redis.get('test:key');
+    console.log('✅ SET/GET:', value);
+    
+    await redis.lpush('test:list', 'item1', 'item2');
+    const list = await redis.lrange('test:list', 0, -1);
+    console.log('✅ LIST:', list);
+    
+    await redis.sadd('test:set', 'member1', 'member2');
+    const set = await redis.smembers('test:set');
+    console.log('✅ SET:', set);
+    
+    await redis.hset('test:hash', 'field1', 'value1');
+    const hash = await redis.hgetall('test:hash');
+    console.log('✅ HASH:', hash);
+    
+    // Test pub/sub
+    const sub = new Redis(process.env.REDIS_URL!);
+    await sub.subscribe('test:channel');
+    
+    sub.on('message', (channel, message) => {
+      console.log('✅ PUB/SUB:', channel, message);
+    });
+    
+    await redis.publish('test:channel', 'Hello Pub/Sub!');
+    
+    // Cleanup
+    await redis.del('test:key', 'test:list', 'test:set', 'test:hash');
+    
+    console.log('\n✅ All tests passed!');
+    
+    redis.disconnect();
+    sub.disconnect();
+  } catch (error) {
+    console.error('❌ Redis test failed:', error);
+    process.exit(1);
+  }
+}
+
+testRedis();
+```
+
+Run it:
+```bash
+REDIS_URL=redis://localhost:6379 npx tsx test-redis.ts
+```
+
+## Monitoring
+
+### Upstash Dashboard
+
+- View real-time command statistics
+- Monitor memory usage
+- Check connection count
+- Browse keys and values
+- Execute Redis commands
+
+### Redis CLI Monitoring
+
+```bash
+# Connect to Redis
+redis-cli -u $REDIS_URL
+
+# Monitor all commands
+MONITOR
+
+# Get server info
+INFO
+
+# Check memory usage
+INFO memory
+
+# List all keys (careful in production!)
+KEYS *
+
+# Check key count
+DBSIZE
+
+# Get specific key info
+TYPE session:abc123
+TTL session:abc123
+```
+
+### CloudWatch (AWS)
+
+```bash
+# View ElastiCache metrics
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/ElastiCache \
+  --metric-name CPUUtilization \
+  --dimensions Name=CacheClusterId,Value=socket-serve-prod \
+  --start-time 2024-01-01T00:00:00Z \
+  --end-time 2024-01-02T00:00:00Z \
+  --period 3600 \
+  --statistics Average
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused">
+    **Check Redis is running:**
+    ```bash
+    redis-cli ping
+    ```
+    
+    **Check Redis is listening:**
+    ```bash
+    netstat -an | grep 6379
+    ```
+    
+    **Check firewall:**
+    ```bash
+    sudo ufw status
+    sudo ufw allow 6379/tcp
+    ```
+  </Accordion>
+
+  <Accordion title="Authentication failed">
+    **Check password:**
+    ```bash
+    redis-cli -a your-password ping
+    ```
+    
+    **In code:**
+    ```typescript
+    const server = createSocketServer({
+      redisUrl: 'redis://localhost:6379',
+      redisOptions: {
+        password: 'your-password'
+      }
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="SSL/TLS errors">
+    **Use `rediss://` (with two 's'):**
+    ```bash
+    REDIS_URL=rediss://your-host:6379
+    ```
+    
+    **Disable cert verification (dev only):**
+    ```typescript
+    redisOptions: {
+      tls: {
+        rejectUnauthorized: false
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Connection timeout">
+    **Increase timeout:**
+    ```typescript
+    redisOptions: {
+      connectTimeout: 10000, // 10 seconds
+      retryStrategy(times) {
+        if (times > 3) return null; // Give up
+        return Math.min(times * 1000, 3000);
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Memory issues">
+    **Check memory usage:**
+    ```bash
+    redis-cli INFO memory
+    ```
+    
+    **Set max memory:**
+    ```bash
+    redis-cli CONFIG SET maxmemory 256mb
+    redis-cli CONFIG SET maxmemory-policy allkeys-lru
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+### Security
+
+- ✅ Use TLS in production (`rediss://`)
+- ✅ Set strong password
+- ✅ Use environment variables, never hardcode
+- ✅ Restrict network access (VPC/firewall)
+- ✅ Disable dangerous commands (CONFIG, FLUSHALL)
+
+```bash
+# redis.conf
+requirepass your-strong-password
+rename-command CONFIG ""
+rename-command FLUSHALL ""
+maxmemory 256mb
+maxmemory-policy allkeys-lru
+```
+
+### Performance
+
+- ✅ Use connection pooling
+- ✅ Set appropriate TTLs for keys
+- ✅ Monitor memory usage
+- ✅ Use pipelining for bulk operations
+- ✅ Configure eviction policy
+
+### Reliability
+
+- ✅ Enable persistence (AOF or RDB)
+- ✅ Set up replication/clustering
+- ✅ Monitor with alerts
+- ✅ Regular backups
+- ✅ Test failover procedures
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Build your first socket app
+  </Card>
+  <Card
+    title="Deployment"
+    icon="cloud-arrow-up"
+    href="/guides/deployment"
+  >
+    Deploy to production
+  </Card>
+  <Card
+    title="State Management"
+    icon="database"
+    href="/concepts/state-management"
+  >
+    Learn about Redis usage
+  </Card>
+  <Card
+    title="Troubleshooting"
+    icon="wrench"
+    href="/advanced/troubleshooting"
+  >
+    Common issues and solutions
+  </Card>
+</CardGroup>

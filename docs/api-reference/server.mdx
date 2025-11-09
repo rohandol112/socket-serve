@@ -1,0 +1,43 @@
+---
+title: 'Server API'
+description: 'Server-side API reference'
+---
+
+## createSocketServer
+
+Creates a new socket server instance.
+
+```typescript
+import { createSocketServer } from 'socket-serve';
+
+const server = createSocketServer(options);
+```
+
+### Parameters
+
+- `options.redisUrl` (string, required) - Redis connection URL
+- `options.redisOptions` (object, optional) - ioredis configuration options
+- `options.redis` (Redis, optional) - Pre-configured Redis instance
+
+### Returns
+
+`SocketServer` instance
+
+## SocketServer
+
+### Events
+
+#### connection
+
+Emitted when a client connects.
+
+```typescript
+server.on('connection', (socket: ServerSocket) => {
+  console.log('Client connected:', socket.id);
+});
+```
+
+## Next Steps
+
+- [Server Socket](/api-reference/server/server-socket) - Individual socket API
+- [Adapters](/api-reference/server/adapters) - Framework adapters

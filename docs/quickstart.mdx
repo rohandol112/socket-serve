@@ -1,0 +1,268 @@
+---
+title: 'Quickstart'
+description: 'Basic setup and usage examples'
+---
+
+## Prerequisites
+
+- Node.js 16 or higher
+- Redis instance ([setup instructions](/guides/redis-setup))
+- Next.js or Express.js project
+
+## Installation
+
+<CodeGroup>
+
+```bash npm
+npm install socket-serve ioredis
+```
+
+```bash yarn
+yarn add socket-serve ioredis
+```
+
+```bash pnpm
+pnpm add socket-serve ioredis
+```
+
+</CodeGroup>
+
+## Next.js Setup
+
+### 1. Create API Route
+
+Create a catch-all API route at `app/api/socket/[[...path]]/route.ts`:
+
+```typescript
+import { createSocketServer } from 'socket-serve';
+import { createNextJSAdapter } from 'socket-serve/adapters';
+
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!
+});
+
+server.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  
+  // Listen for messages
+  socket.on('message', (data) => {
+    console.log('Received:', data);
+    socket.emit('response', { echo: data });
+  });
+  
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+export const { GET, POST } = createNextJSAdapter(server);
+```
+
+### 2. Set Environment Variable
+
+Create `.env.local`:
+
+```bash
+REDIS_URL=redis://localhost:6379
+# Or use Upstash: rediss://default:xxx@xxx.upstash.io:6379
+```
+
+### 3. Create Client Component
+
+Create `app/components/SocketClient.tsx`:
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { connect, ClientSocket } from 'socket-serve/client';
+
+export default function SocketClient() {
+  const [socket, setSocket] = useState<ClientSocket | null>(null);
+  const [messages, setMessages] = useState<string[]>([]);
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    const newSocket = connect('/api/socket');
+    
+    newSocket.on('connect', () => {
+      console.log('Connected!');
+    });
+    
+    newSocket.on('response', (data) => {
+      setMessages(prev => [...prev, `Server: ${JSON.stringify(data)}`]);
+    });
+    
+    setSocket(newSocket);
+    
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
+
+  const sendMessage = () => {
+    if (socket && input) {
+      socket.emit('message', { text: input });
+      setMessages(prev => [...prev, `You: ${input}`]);
+      setInput('');
+    }
+  };
+
+  return (
+    <div className="p-4">
+      <div className="mb-4 space-y-2">
+        {messages.map((msg, i) => (
+          <div key={i} className="p-2 bg-gray-100 rounded">
+            {msg}
+          </div>
+        ))}
+      </div>
+      
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          className="flex-1 p-2 border rounded"
+          placeholder="Type a message..."
+        />
+        <button
+          onClick={sendMessage}
+          className="px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+### 4. Use in Page
+
+Update `app/page.tsx`:
+
+```tsx
+import SocketClient from './components/SocketClient';
+
+export default function Home() {
+  return (
+    <main className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-4">socket-serve Demo</h1>
+      <SocketClient />
+    </main>
+  );
+}
+```
+
+### 5. Run the Application
+
+```bash
+npm run dev
+```
+
+Navigate to `http://localhost:3000` to test the implementation.
+
+## Express.js Setup
+
+### 1. Create Server
+
+Create `server.ts`:
+
+```typescript
+import express from 'express';
+import { createSocketServer } from 'socket-serve';
+import { createExpressAdapter } from 'socket-serve/adapters';
+
+const app = express();
+const server = createSocketServer({
+  redisUrl: process.env.REDIS_URL!
+});
+
+server.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  
+  socket.on('message', (data) => {
+    socket.emit('response', { echo: data });
+  });
+});
+
+const adapter = createExpressAdapter(server);
+app.use('/socket', adapter);
+
+app.listen(3000, () => {
+  console.log('Server running on http://localhost:3000');
+});
+```
+
+### 2. Create Client
+
+Create `public/index.html`:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>socket-serve Demo</title>
+</head>
+<body>
+  <div id="messages"></div>
+  <input id="input" type="text" placeholder="Type a message...">
+  <button id="send">Send</button>
+
+  <script type="module">
+    import { connect } from 'http://localhost:3000/socket/client.js';
+    
+    const socket = connect('http://localhost:3000/socket');
+    const messages = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const send = document.getElementById('send');
+    
+    socket.on('connect', () => {
+      addMessage('Connected!');
+    });
+    
+    socket.on('response', (data) => {
+      addMessage(`Server: ${JSON.stringify(data)}`);
+    });
+    
+    send.addEventListener('click', () => {
+      if (input.value) {
+        socket.emit('message', { text: input.value });
+        addMessage(`You: ${input.value}`);
+        input.value = '';
+      }
+    });
+    
+    function addMessage(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      messages.appendChild(div);
+    }
+  </script>
+</body>
+</html>
+```
+
+## Next Steps
+
+- [Architecture](/concepts/architecture) - Understanding the system design
+- [Rooms](/concepts/rooms) - Broadcasting to client groups
+- [Redis Setup](/guides/redis-setup) - Production configuration
+- [API Reference](/api-reference/introduction) - Complete API documentation
+
+## Troubleshooting
+
+**Redis connection errors:**
+Verify Redis is running and `REDIS_URL` is set correctly:
+```bash
+redis-cli ping
+```
+
+**Client connection failures:**
+Ensure API route path matches client connection URL. For Next.js, route must be at `app/api/socket/[[...path]]/route.ts`
+
+**Messages not received:**
+Event names are case-sensitive. Verify both client and server use identical event names.

@@ -1,0 +1,32 @@
+---
+title: 'Real-Time Dashboard'
+description: 'Live data dashboard example'
+---
+
+## Features
+
+- Live metric updates
+- Multiple data streams
+- Department/team filtering
+- Historical data visualization
+
+## Architecture
+
+```typescript
+// Server
+server.on('connection', (socket) => {
+  socket.on('subscribe', ({ department }) => {
+    socket.join(`dept:${department}`);
+  });
+  
+  // Broadcast updates
+  setInterval(() => {
+    const metrics = generateMetrics();
+    socket.broadcastToRoom('dept:sales', 'metrics-update', metrics);
+  }, 5000);
+});
+```
+
+## Implementation
+
+Full example available in repository `examples/dashboard/`

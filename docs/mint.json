@@ -1,0 +1,131 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "socket-serve",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373",
+    "anchors": {
+      "from": "#0D9373",
+      "to": "#07C983"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@socket-serve.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "GitHub",
+    "url": "https://github.com/rohandol112/socket-serve"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    },
+    {
+      "name": "Examples",
+      "url": "examples"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Documentation",
+      "icon": "book-open-cover",
+      "url": "https://socket-serve.mintlify.app"
+    },
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/rohandol112/socket-serve"
+    },
+    {
+      "name": "npm",
+      "icon": "npm",
+      "url": "https://www.npmjs.com/package/socket-serve"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "installation"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/architecture",
+        "concepts/transports",
+        "concepts/state-management",
+        "concepts/rooms"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/nextjs-setup",
+        "guides/express-setup",
+        "guides/redis-setup",
+        "guides/deployment"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/introduction",
+        "api-reference/server",
+        "api-reference/client",
+        "api-reference/types"
+      ]
+    },
+    {
+      "group": "Server API",
+      "pages": [
+        "api-reference/server/socket-server",
+        "api-reference/server/server-socket",
+        "api-reference/server/adapters"
+      ]
+    },
+    {
+      "group": "Client API",
+      "pages": [
+        "api-reference/client/connect",
+        "api-reference/client/socket-methods",
+        "api-reference/client/events"
+      ]
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "examples/introduction",
+        "examples/nextjs",
+        "examples/express",
+        "examples/chat-app",
+        "examples/real-time-dashboard"
+      ]
+    },
+    {
+      "group": "Advanced",
+      "pages": [
+        "advanced/custom-adapters",
+        "advanced/scaling",
+        "advanced/security",
+        "advanced/troubleshooting"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/rohandol112/socket-serve",
+    "x": "https://twitter.com/socket-serve"
+  }
+}

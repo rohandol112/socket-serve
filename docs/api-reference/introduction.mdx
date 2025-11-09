@@ -1,0 +1,335 @@
+---
+title: 'API Reference'
+description: 'Complete API documentation for socket-serve'
+---
+
+## Overview
+
+socket-serve provides a clean, type-safe API for building real-time applications in serverless environments. The API is divided into three main parts:
+
+<CardGroup cols={3}>
+  <Card title="Server API" icon="server" href="/api-reference/server">
+    Server-side socket management and event handling
+  </Card>
+  <Card title="Client API" icon="browser" href="/api-reference/client">
+    Browser client SDK for connecting to socket servers
+  </Card>
+  <Card title="Types" icon="code" href="/api-reference/types">
+    TypeScript type definitions and interfaces
+  </Card>
+</CardGroup>
+
+## Quick Reference
+
+### Server
+
+```typescript
+import { createSocketServer } from 'socket-serve';
+import { createNextJSAdapter, createExpressAdapter } from 'socket-serve/adapters';
+
+// Create server
+const server = createSocketServer(options);
+
+// Handle connections
+server.on('connection', (socket) => {
+  // Socket methods
+  socket.emit(event, data, ackCallback?);
+  socket.on(event, handler);
+  socket.join(room);
+  socket.leave(room);
+  socket.getRooms();
+  socket.broadcastToRoom(room, event, data);
+  socket.disconnect();
+});
+
+// Adapters
+const nextAdapter = createNextJSAdapter(server);
+const expressAdapter = createExpressAdapter(server);
+```
+
+### Client
+
+```typescript
+import { connect } from 'socket-serve/client';
+
+// Connect
+const socket = connect(url, options?);
+
+// Events
+socket.on('connect', () => {});
+socket.on('disconnect', () => {});
+socket.on(event, handler);
+
+// Methods
+socket.emit(event, data, ackCallback?);
+socket.disconnect();
+
+// Properties
+socket.id;
+socket.connected;
+```
+
+## Core Concepts
+
+### Event-Driven
+
+Both server and client use an event-driven architecture:
+
+```typescript
+// Server listens for events from clients
+socket.on('message', (data) => {
+  console.log('Received:', data);
+});
+
+// Server emits events to clients
+socket.emit('response', { success: true });
+
+// Client listens for events from server
+socket.on('response', (data) => {
+  console.log('Server said:', data);
+});
+
+// Client emits events to server
+socket.emit('message', { text: 'Hello!' });
+```
+
+### Acknowledgments
+
+Request/response pattern with callbacks:
+
+```typescript
+// Client requests with acknowledgment
+socket.emit('getData', { id: 123 }, (response) => {
+  console.log('Got response:', response);
+});
+
+// Server responds
+socket.on('getData', (data, ack) => {
+  const result = fetchData(data.id);
+  ack({ success: true, data: result });
+});
+```
+
+### Rooms
+
+Group clients for targeted broadcasting:
+
+```typescript
+// Join room
+socket.join('lobby');
+
+// Broadcast to room
+socket.broadcastToRoom('lobby', 'announcement', {
+  message: 'Welcome to the lobby!'
+});
+
+// Leave room
+socket.leave('lobby');
+```
+
+## Navigation
+
+<CardGroup cols={2}>
+  <Card
+    title="Socket Server"
+    icon="server"
+    href="/api-reference/server/socket-server"
+  >
+    Main server class and configuration
+  </Card>
+  <Card
+    title="Server Socket"
+    icon="plug"
+    href="/api-reference/server/server-socket"
+  >
+    Individual client socket on the server
+  </Card>
+  <Card
+    title="Adapters"
+    icon="link"
+    href="/api-reference/server/adapters"
+  >
+    Framework integration adapters
+  </Card>
+  <Card
+    title="Client Connection"
+    icon="arrow-right-to-bracket"
+    href="/api-reference/client/connect"
+  >
+    Connecting from the browser
+  </Card>
+  <Card
+    title="Socket Methods"
+    icon="function"
+    href="/api-reference/client/socket-methods"
+  >
+    Client socket methods and properties
+  </Card>
+  <Card
+    title="Events"
+    icon="bolt"
+    href="/api-reference/client/events"
+  >
+    Built-in and custom events
+  </Card>
+</CardGroup>
+
+## Type Safety
+
+socket-serve is written in TypeScript and provides full type safety:
+
+```typescript
+import type {
+  SocketServer,
+  ServerSocket,
+  ClientSocket,
+  SocketMessage,
+  SocketServerOptions
+} from 'socket-serve/types';
+
+// Typed event handlers
+socket.on<{ message: string }>('chat', (data) => {
+  data.message; // TypeScript knows this is a string
+});
+
+// Typed acknowledgments
+socket.emit<{ id: number }, { data: string }>(
+  'getData',
+  { id: 123 },
+  (response) => {
+    response.data; // TypeScript knows this is a string
+  }
+);
+```
+
+## Error Handling
+
+### Server Errors
+
+```typescript
+server.on('connection', (socket) => {
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
+  });
+  
+  socket.on('riskyOperation', async (data) => {
+    try {
+      const result = await performOperation(data);
+      socket.emit('success', result);
+    } catch (error) {
+      socket.emit('error', {
+        message: 'Operation failed',
+        details: error.message
+      });
+    }
+  });
+});
+```
+
+### Client Errors
+
+```typescript
+socket.on('error', (error) => {
+  console.error('Connection error:', error);
+});
+
+socket.on('connect_error', (error) => {
+  console.error('Failed to connect:', error);
+});
+
+// Acknowledgment timeout
+socket.emit('getData', { id: 123 }, (response, error) => {
+  if (error) {
+    console.error('Request timed out');
+  } else {
+    console.log('Got response:', response);
+  }
+});
+```
+
+## Best Practices
+
+### Server Side
+
+```typescript
+// ✅ Clean up on disconnect
+socket.on('disconnect', () => {
+  // Release resources
+  // Clean up subscriptions
+  // Notify other users
+});
+
+// ✅ Validate input
+socket.on('message', (data) => {
+  if (!data.text || typeof data.text !== 'string') {
+    socket.emit('error', { message: 'Invalid message' });
+    return;
+  }
+  // Process message
+});
+
+// ✅ Use rooms for efficient broadcasting
+socket.join(`user:${userId}`);
+socket.broadcastToRoom(`user:${userId}`, 'notification', data);
+```
+
+### Client Side
+
+```typescript
+// ✅ Handle reconnection
+socket.on('connect', () => {
+  // Re-subscribe to events
+  // Sync state
+});
+
+// ✅ Clean up on unmount
+useEffect(() => {
+  const socket = connect('/api/socket');
+  
+  return () => {
+    socket.disconnect();
+  };
+}, []);
+
+// ✅ Use acknowledgments for critical operations
+socket.emit('saveData', data, (response, error) => {
+  if (error) {
+    showError('Save failed');
+  } else {
+    showSuccess('Saved!');
+  }
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Server API"
+    icon="server"
+    href="/api-reference/server/socket-server"
+  >
+    Dive into the server API
+  </Card>
+  <Card
+    title="Client API"
+    icon="browser"
+    href="/api-reference/client/connect"
+  >
+    Explore the client SDK
+  </Card>
+  <Card
+    title="Examples"
+    icon="code"
+    href="/examples/introduction"
+  >
+    See complete examples
+  </Card>
+  <Card
+    title="Concepts"
+    icon="brain"
+    href="/concepts/architecture"
+  >
+    Understand the architecture
+  </Card>
+</CardGroup>

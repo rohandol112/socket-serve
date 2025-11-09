@@ -1,0 +1,151 @@
+---
+title: 'Express Setup'
+description: 'Integration guide for Express.js'
+---
+
+## Installation
+
+```bash
+npm install socket-serve ioredis express
+npm install -D @types/express
+```
+
+## Server Setup
+
+Create `server.ts`:
+
+```typescript
+import express from 'express';
+import { createSocketServer } from 'socket-serve';
+import { createExpressAdapter } from 'socket-serve/adapters';
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+const socketServer = createSocketServer({
+  redisUrl: process.env.REDIS_URL!
+});
+
+socketServer.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  
+  socket.on('message', (data) => {
+    socket.emit('response', { echo: data });
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+// Mount socket adapter
+const socketAdapter = createExpressAdapter(socketServer);
+app.use('/socket', socketAdapter);
+
+// Static files
+app.use(express.static('public'));
+
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+});
+```
+
+## Client Setup
+
+Create `public/index.html`:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>socket-serve Demo</title>
+</head>
+<body>
+  <div id="status">Connecting...</div>
+  
+  <script type="module">
+    import { connect } from '/socket/client.js';
+    
+    const socket = connect('/socket');
+    const status = document.getElementById('status');
+    
+    socket.on('connect', () => {
+      status.textContent = 'Connected';
+    });
+    
+    socket.on('disconnect', () => {
+      status.textContent = 'Disconnected';
+    });
+  </script>
+</body>
+</html>
+```
+
+## Environment Configuration
+
+Create `.env`:
+
+```bash
+REDIS_URL=redis://localhost:6379
+PORT=3000
+```
+
+## Development
+
+```bash
+npx tsx watch server.ts
+```
+
+## Production Build
+
+```typescript
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true
+  }
+}
+```
+
+Build and run:
+
+```bash
+npx tsc
+node dist/server.js
+```
+
+## Deployment
+
+### Docker
+
+`Dockerfile`:
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --production
+COPY . .
+EXPOSE 3000
+CMD ["node", "dist/server.js"]
+```
+
+### Environment Variables
+
+Production configuration:
+
+```bash
+REDIS_URL=rediss://default:xxx@xxx.upstash.io:6379
+PORT=3000
+NODE_ENV=production
+```
+
+## Next Steps
+
+- [Next.js Setup](/guides/nextjs-setup) - Next.js integration
+- [Redis Setup](/guides/redis-setup) - Redis configuration
+- [Deployment](/guides/deployment) - Production deployment

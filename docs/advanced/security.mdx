@@ -1,0 +1,65 @@
+---
+title: 'Security'
+description: 'Security best practices'
+---
+
+## TLS/SSL
+
+Always use encrypted Redis connections in production:
+
+```bash
+REDIS_URL=rediss://default:password@host:6379
+```
+
+## Authentication
+
+Implement authentication before socket connection:
+
+```typescript
+server.on('connection', (socket) => {
+  socket.on('authenticate', async ({ token }) => {
+    const user = await verifyToken(token);
+    if (!user) {
+      socket.disconnect();
+      return;
+    }
+    // Store user info
+  });
+});
+```
+
+## Input Validation
+
+Always validate client input:
+
+```typescript
+socket.on('message', (data) => {
+  if (!data.text || typeof data.text !== 'string') {
+    socket.emit('error', { message: 'Invalid input' });
+    return;
+  }
+  // Process valid data
+});
+```
+
+## Rate Limiting
+
+Implement rate limiting per session:
+
+```typescript
+const rateLimits = new Map();
+
+socket.on('message', (data) => {
+  const count = rateLimits.get(socket.id) || 0;
+  if (count > 100) {
+    socket.emit('error', { message: 'Rate limit exceeded' });
+    return;
+  }
+  rateLimits.set(socket.id, count + 1);
+});
+```
+
+## Next Steps
+
+- [Deployment](/guides/deployment) - Production deployment
+- [Troubleshooting](/advanced/troubleshooting) - Common issues

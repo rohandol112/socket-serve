@@ -1,0 +1,64 @@
+---
+title: 'Type Definitions'
+description: 'TypeScript interfaces and types'
+---
+
+## Core Types
+
+### SocketServerOptions
+
+```typescript
+interface SocketServerOptions {
+  redisUrl?: string;
+  redisOptions?: RedisOptions;
+  redis?: Redis;
+}
+```
+
+### ServerSocket
+
+```typescript
+interface ServerSocket {
+  id: string;
+  connected: boolean;
+  
+  emit(event: string, data: any, ack?: AckCallback): void;
+  on(event: string, handler: EventHandler): void;
+  join(room: string): Promise<void>;
+  leave(room: string): Promise<void>;
+  getRooms(): Set<string>;
+  broadcastToRoom(room: string, event: string, data: any): void;
+  disconnect(): void;
+}
+```
+
+### ClientSocket
+
+```typescript
+interface ClientSocket {
+  id: string | null;
+  connected: boolean;
+  
+  emit(event: string, data: any, ack?: AckCallback): void;
+  on(event: string, handler: EventHandler): void;
+  disconnect(): void;
+}
+```
+
+### SocketMessage
+
+```typescript
+interface SocketMessage {
+  id: string;
+  event: string;
+  data: any;
+  timestamp: number;
+  requiresAck?: boolean;
+  messageId?: string;
+}
+```
+
+## Next Steps
+
+- [Server API](/api-reference/server) - Server reference
+- [Client API](/api-reference/client) - Client reference
