@@ -2,19 +2,23 @@
 
 This directory contains the Mintlify documentation for socket-serve.
 
+## 🌐 Live Documentation
+
+Visit **[socket-serve.mintlify.app](https://socket-serve.mintlify.app)** for the published documentation.
+
 ## Local Development
 
 Install Mintlify CLI:
 
 ```bash
-npm install -g mint
+npm install -g mintlify
 ```
 
 Start the development server:
 
 ```bash
 cd docs
-mint dev
+mintlify dev
 ```
 
 Visit http://localhost:3000

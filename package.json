@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/rohandol112/socket-serve/issues"
   },
-  "homepage": "https://github.com/rohandol112/socket-serve#readme",
+  "homepage": "https://socket-serve.mintlify.app",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

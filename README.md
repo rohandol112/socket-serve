@@ -5,7 +5,17 @@
 [![npm version](https://img.shields.io/npm/v/socket-serve?color=blue)](https://www.npmjs.com/package/socket-serve)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
+[![Documentation](https://img.shields.io/badge/docs-Mintlify-blue)](https://socket-serve.mintlify.app)
 [![Tested](https://img.shields.io/badge/tested-passing-brightgreen)](README.md)
+
+<div align="center">
+
+**[📚 Documentation](https://socket-serve.mintlify.app)** • 
+**[🚀 Quick Start](https://socket-serve.mintlify.app/quickstart)** • 
+**[📦 npm Package](https://www.npmjs.com/package/socket-serve)** • 
+**[💬 GitHub Issues](https://github.com/rohandol112/socket-serve/issues)**
+
+</div>
 
 ---
 
@@ -1362,13 +1372,11 @@ Built with:
 
 ## 🔗 Links
 
-- [GitHub](https://github.com/rohandol112/socket-serve)
-- [npm](https://www.npmjs.com/package/socket-serve)
-- [Issues](https://github.com/rohandol112/socket-serve/issues)
-- [Examples](./examples)
-- [Deployment Guide](./DEPLOYMENT.md) - **Complete Vercel deployment walkthrough**
-- [Testing Guide](./TESTING.md)
-- [Contributing](./CONTRIBUTING.md)
+- [📚 Documentation](https://socket-serve.mintlify.app) - Complete documentation
+- [GitHub](https://github.com/rohandol112/socket-serve) - Source code
+- [npm](https://www.npmjs.com/package/socket-serve) - Package registry
+- [Issues](https://github.com/rohandol112/socket-serve/issues) - Bug reports
+- [Examples](./examples) - Sample applications
 
 ---
 

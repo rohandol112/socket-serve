@@ -15,15 +15,23 @@
       "to": "#07C983"
     }
   },
+  "metadata": {
+    "og:title": "socket-serve - Real-time WebSockets for Serverless",
+    "og:description": "Socket.IO-compatible API for serverless platforms using SSE and Redis. Deploy to Vercel, Netlify, and Cloudflare Workers.",
+    "og:image": "https://socket-serve.mintlify.app/logo/dark.svg",
+    "twitter:card": "summary_large_image",
+    "twitter:title": "socket-serve Documentation",
+    "twitter:description": "Real-time communication for serverless platforms"
+  },
   "topbarLinks": [
     {
-      "name": "Support",
-      "url": "mailto:support@socket-serve.com"
+      "name": "GitHub",
+      "url": "https://github.com/rohandol112/socket-serve"
     }
   ],
   "topbarCtaButton": {
-    "name": "GitHub",
-    "url": "https://github.com/rohandol112/socket-serve"
+    "name": "npm Package",
+    "url": "https://www.npmjs.com/package/socket-serve"
   },
   "tabs": [
     {
@@ -125,7 +133,6 @@
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/rohandol112/socket-serve",
-    "x": "https://twitter.com/socket-serve"
+    "github": "https://github.com/rohandol112/socket-serve"
   }
 }
