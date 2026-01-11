@@ -1,0 +1,103 @@
+---
+title: Utilities Overview
+description: 'Additional utilities for advanced socket-serve features'
+---
+
+# Utilities
+
+socket-serve provides several utility modules to extend functionality:
+
+## Available Utilities
+
+### Middleware
+Chain middleware functions for request processing, authentication, and validation.
+
+```typescript
+import { createMiddleware } from 'socket-serve/utils/middleware';
+```
+
+[Learn more →](/api-reference/utils/middleware)
+
+### Presence Tracking
+Track online users and their status in real-time.
+
+```typescript
+import { PresenceManager } from 'socket-serve/utils/presence';
+```
+
+[Learn more →](/api-reference/utils/presence)
+
+### Compression
+Automatic message compression for large payloads.
+
+```typescript
+import { compress, decompress } from 'socket-serve/utils/compression';
+```
+
+[Learn more →](/api-reference/utils/compression)
+
+### Binary Data
+Handle binary data transmission efficiently.
+
+```typescript
+import { encodeBinary, decodeBinary } from 'socket-serve/utils/binary';
+```
+
+[Learn more →](/api-reference/utils/binary)
+
+### Namespaces
+Organize sockets into logical namespaces.
+
+```typescript
+import { createNamespace } from 'socket-serve/utils/namespace';
+```
+
+[Learn more →](/api-reference/utils/namespace)
+
+## Usage Example
+
+```typescript
+import { SocketServer } from 'socket-serve/server';
+import { PresenceManager } from 'socket-serve/utils/presence';
+import { createMiddleware } from 'socket-serve/utils/middleware';
+
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+});
+
+// Use presence tracking
+const presence = new PresenceManager(server);
+
+presence.onJoin((userId, metadata) => {
+  console.log(`User ${userId} is now online`);
+});
+
+// Use middleware
+const authMiddleware = createMiddleware(async (socket, next) => {
+  const token = socket.get('token');
+  if (isValidToken(token)) {
+    next();
+  } else {
+    next(new Error('Authentication failed'));
+  }
+});
+
+server.use(authMiddleware);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Middleware" icon="layer-group" href="/api-reference/utils/middleware">
+    Learn about middleware
+  </Card>
+  <Card title="Presence" icon="users" href="/api-reference/utils/presence">
+    Track user presence
+  </Card>
+  <Card title="Compression" icon="compress" href="/api-reference/utils/compression">
+    Compress messages
+  </Card>
+  <Card title="Binary Data" icon="file-binary" href="/api-reference/utils/binary">
+    Handle binary data
+  </Card>
+</CardGroup>

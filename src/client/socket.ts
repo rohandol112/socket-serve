@@ -38,6 +38,9 @@ export class ClientSocketImpl implements ClientSocket {
       this.connected = true;
       this.reconnectAttempts = 0;
 
+      // Emit connect event to handlers
+      this.emitLocal("connect", { sessionId });
+
       // Start appropriate transport
       if (this.transport === "sse") {
         this.startSSE();
@@ -47,6 +50,13 @@ export class ClientSocketImpl implements ClientSocket {
     } catch (error) {
       console.error("Connection failed:", error);
       this.handleReconnect();
+    }
+  }
+
+  private emitLocal(event: string, data: unknown): void {
+    const handlers = this.handlers.get(event);
+    if (handlers) {
+      handlers.forEach((handler) => handler(data));
     }
   }
 
@@ -62,6 +72,9 @@ export class ClientSocketImpl implements ClientSocket {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
+
+    // Emit disconnect event to handlers
+    this.emitLocal("disconnect", {});
 
     // Notify server
     if (this.id) {

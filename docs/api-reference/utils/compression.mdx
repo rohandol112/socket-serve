@@ -1,0 +1,253 @@
+---
+title: Compression
+description: 'Automatic message compression for large payloads'
+---
+
+# Message Compression
+
+socket-serve automatically compresses large messages to reduce bandwidth usage and improve performance. This happens transparently - you don't need to do anything special.
+
+## Installation
+
+Compression utilities are included in the main socket-serve package:
+
+```typescript
+import { compress, decompress } from 'socket-serve/utils/compression';
+```
+
+## Automatic Compression
+
+Compression is enabled by default for messages over 1KB:
+
+```typescript
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  enableCompression: true, // default
+  compressionThreshold: 1024 // bytes (default)
+});
+```
+
+## Configuration
+
+```typescript
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  enableCompression: true,
+  compressionThreshold: 512, // Compress messages > 512 bytes
+});
+```
+
+## Manual Compression
+
+You can manually compress and decompress data:
+
+```typescript
+import { compress, decompress } from 'socket-serve/utils/compression';
+
+// Compress data
+const data = { large: 'data'.repeat(1000) };
+const compressed = await compress(JSON.stringify(data));
+
+// Decompress data
+const decompressed = await decompress(compressed);
+const original = JSON.parse(decompressed);
+```
+
+## How It Works
+
+1. **Client → Server**: Messages are compressed before sending if they exceed the threshold
+2. **Server → Client**: Server automatically compresses large responses
+3. **Transparent**: Compression/decompression happens automatically
+4. **Headers**: Compressed messages include a `compressed: true` flag
+
+## Compression Algorithms
+
+socket-serve uses **gzip** compression by default for broad compatibility:
+
+```typescript
+// Using gzip (default)
+const compressed = await compress(data, 'gzip');
+
+// Using deflate
+const compressed = await compress(data, 'deflate');
+
+// Using brotli (best compression, slower)
+const compressed = await compress(data, 'br');
+```
+
+## Performance Considerations
+
+```typescript
+// Measure compression ratio
+const original = JSON.stringify(largeData);
+const compressed = await compress(original);
+
+const ratio = (1 - compressed.length / original.length) * 100;
+console.log(`Compression saved ${ratio.toFixed(1)}%`);
+```
+
+## API Reference
+
+### `compress(data, algorithm?)`
+
+Compress a string or buffer.
+
+**Parameters:**
+- `data: string | Buffer` - Data to compress
+- `algorithm?: 'gzip' | 'deflate' | 'br'` - Compression algorithm (default: 'gzip')
+
+**Returns:** `Promise<Buffer>` - Compressed data
+
+**Example:**
+```typescript
+const compressed = await compress('large text data');
+```
+
+### `decompress(data, algorithm?)`
+
+Decompress a buffer back to string.
+
+**Parameters:**
+- `data: Buffer` - Compressed data
+- `algorithm?: 'gzip' | 'deflate' | 'br'` - Compression algorithm (default: 'gzip')
+
+**Returns:** `Promise<string>` - Decompressed data
+
+**Example:**
+```typescript
+const decompressed = await decompress(compressedBuffer);
+```
+
+### `shouldCompress(data, threshold?)`
+
+Check if data should be compressed based on size.
+
+**Parameters:**
+- `data: string | Buffer` - Data to check
+- `threshold?: number` - Size threshold in bytes (default: 1024)
+
+**Returns:** `boolean` - Whether data should be compressed
+
+**Example:**
+```typescript
+if (shouldCompress(data, 512)) {
+  data = await compress(data);
+}
+```
+
+## Client-Side Compression
+
+The client automatically handles compression:
+
+```typescript
+import { connect } from 'socket-serve/client';
+
+const socket = connect('http://localhost:3000/api/socket', {
+  enableCompression: true, // default
+  compressionThreshold: 1024
+});
+
+// Large messages are automatically compressed
+socket.emit('data', { large: 'payload'.repeat(1000) });
+```
+
+## Example: Streaming Large Data
+
+```typescript
+import { compress } from 'socket-serve/utils/compression';
+
+server.onMessage('upload', async (socket, data) => {
+  // Compress before storing in Redis
+  const compressed = await compress(JSON.stringify(data));
+  
+  // Store compressed data
+  await redis.set(`data:${socket.id}`, compressed);
+  
+  // Acknowledge with compression stats
+  await socket.emit('upload:complete', {
+    originalSize: JSON.stringify(data).length,
+    compressedSize: compressed.length,
+    ratio: (1 - compressed.length / JSON.stringify(data).length) * 100
+  });
+});
+```
+
+## Compression Strategies
+
+### For Chat Messages
+```typescript
+// Don't compress short messages
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  compressionThreshold: 256 // Only compress messages > 256 bytes
+});
+```
+
+### For File Transfers
+```typescript
+// Always compress files
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  compressionThreshold: 0 // Compress everything
+});
+```
+
+### For Real-time Updates
+```typescript
+// Balance compression ratio vs speed
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  enableCompression: true,
+  compressionThreshold: 1024 // Default balance
+});
+```
+
+## Benchmarks
+
+Typical compression ratios for different data types:
+
+| Data Type | Original Size | Compressed Size | Ratio |
+|-----------|--------------|-----------------|-------|
+| JSON | 10 KB | 2 KB | 80% |
+| Text | 100 KB | 15 KB | 85% |
+| Already Compressed | 1 MB | 1 MB | 0% |
+
+## Best Practices
+
+- Enable compression for bandwidth-constrained environments
+- Adjust threshold based on your message sizes
+- Don't compress already-compressed data (images, videos)
+- Monitor compression ratios in production
+- Use brotli for static content, gzip for dynamic
+- Test performance impact on your specific use case
+
+## Troubleshooting
+
+### Issue: High CPU Usage
+
+**Solution:** Increase compression threshold or disable compression:
+```typescript
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  enableCompression: false
+});
+```
+
+### Issue: Messages Not Compressing
+
+**Solution:** Check message size vs threshold:
+```typescript
+console.log('Message size:', JSON.stringify(data).length);
+console.log('Threshold:', server.compressionThreshold);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Binary Data" icon="file-binary" href="/api-reference/utils/binary">
+    Handle binary data
+  </Card>
+  <Card title="Performance" icon="gauge" href="/advanced/scaling">
+    Optimize performance
+  </Card>
+</CardGroup>

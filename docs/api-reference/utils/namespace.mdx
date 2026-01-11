@@ -1,0 +1,347 @@
+---
+title: Namespaces
+description: 'Organize sockets into logical namespaces'
+---
+
+# Namespaces
+
+Namespaces let you organize your sockets into logical groups, similar to how Socket.IO does it. This is useful when you have different types of functionality that shouldn't interfere with each other.
+
+## Installation
+
+Namespace utilities are included in the main socket-serve package:
+
+```typescript
+import { createNamespace } from 'socket-serve/utils/namespace';
+```
+
+## Basic Usage
+
+```typescript
+import { SocketServer } from 'socket-serve/server';
+import { createNamespace } from 'socket-serve/utils/namespace';
+
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+});
+
+// Create namespaces
+const chatNamespace = createNamespace(server, '/chat');
+const adminNamespace = createNamespace(server, '/admin');
+
+// Handle connections per namespace
+chatNamespace.onConnect((socket) => {
+  console.log('User connected to chat');
+});
+
+adminNamespace.onConnect((socket) => {
+  console.log('Admin connected');
+});
+```
+
+## Why Use Namespaces?
+
+Namespaces help you:
+- **Separate Concerns**: Different functionality in different namespaces
+- **Access Control**: Restrict access to specific namespaces
+- **Event Isolation**: Events in one namespace don't affect others
+- **Resource Organization**: Group related functionality together
+
+## Creating Namespaces
+
+```typescript
+// Default namespace (/)
+const defaultNs = server; // No namespace = default
+
+// Custom namespaces
+const chatNs = createNamespace(server, '/chat');
+const notificationsNs = createNamespace(server, '/notifications');
+const adminNs = createNamespace(server, '/admin');
+```
+
+## Namespace Events
+
+Each namespace has its own event handlers:
+
+```typescript
+const chatNs = createNamespace(server, '/chat');
+
+// Connection handler
+chatNs.onConnect(async (socket) => {
+  console.log(`User ${socket.id} connected to chat`);
+  
+  // Join default room
+  await socket.join('general');
+});
+
+// Message handlers
+chatNs.onMessage('message', async (socket, data) => {
+  const room = socket.get('currentRoom') || 'general';
+  await socket.broadcastToRoom(room, 'message', {
+    user: socket.get('user'),
+    text: data.text,
+    timestamp: Date.now()
+  });
+});
+
+// Disconnection handler
+chatNs.onDisconnect(async (socket) => {
+  console.log(`User ${socket.id} left chat`);
+});
+```
+
+## Client Connection
+
+Connect to specific namespaces from the client:
+
+```typescript
+import { connect } from 'socket-serve/client';
+
+// Connect to default namespace
+const defaultSocket = connect('http://localhost:3000/api/socket');
+
+// Connect to chat namespace
+const chatSocket = connect('http://localhost:3000/api/socket/chat');
+
+// Connect to admin namespace  
+const adminSocket = connect('http://localhost:3000/api/socket/admin');
+```
+
+## Example: Multi-Purpose Application
+
+```typescript
+import { SocketServer } from 'socket-serve/server';
+import { createNamespace } from 'socket-serve/utils/namespace';
+
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+});
+
+// Public chat namespace
+const chatNs = createNamespace(server, '/chat');
+chatNs.onConnect(async (socket) => {
+  await socket.join('lobby');
+  await socket.broadcast('user:joined', {
+    userId: socket.id
+  });
+});
+
+chatNs.onMessage('chat:message', async (socket, data) => {
+  await socket.broadcastToRoom('lobby', 'chat:message', {
+    userId: socket.id,
+    message: data.message,
+    timestamp: Date.now()
+  });
+});
+
+// Notifications namespace
+const notifNs = createNamespace(server, '/notifications');
+notifNs.onConnect(async (socket) => {
+  const userId = socket.get('userId');
+  await socket.join(`user:${userId}`);
+});
+
+// Admin namespace (with authentication)
+const adminNs = createNamespace(server, '/admin');
+adminNs.onConnect(async (socket) => {
+  const isAdmin = socket.get('isAdmin');
+  if (!isAdmin) {
+    await socket.emit('error', { message: 'Unauthorized' });
+    return;
+  }
+  
+  await socket.emit('admin:data', {
+    users: await getOnlineUsers(),
+    metrics: await getMetrics()
+  });
+});
+
+adminNs.onMessage('admin:broadcast', async (socket, data) => {
+  // Broadcast to all users across all namespaces
+  await server.broadcast('announcement', data);
+});
+```
+
+## API Reference
+
+### `createNamespace(server, path)`
+
+Create a new namespace.
+
+**Parameters:**
+- `server: SocketServer` - The socket server instance
+- `path: string` - Namespace path (must start with `/`)
+
+**Returns:** `Namespace` - Namespace instance
+
+**Example:**
+```typescript
+const ns = createNamespace(server, '/my-namespace');
+```
+
+### Namespace Methods
+
+#### `onConnect(handler)`
+
+Register connection handler for this namespace.
+
+```typescript
+namespace.onConnect((socket) => {
+  console.log('Connected:', socket.id);
+});
+```
+
+#### `onMessage(event, handler)`
+
+Register message handler for this namespace.
+
+```typescript
+namespace.onMessage('chat', (socket, data) => {
+  console.log('Chat message:', data);
+});
+```
+
+#### `onDisconnect(handler)`
+
+Register disconnection handler for this namespace.
+
+```typescript
+namespace.onDisconnect((socket) => {
+  console.log('Disconnected:', socket.id);
+});
+```
+
+#### `broadcast(event, data)`
+
+Broadcast to all sockets in this namespace.
+
+```typescript
+await namespace.broadcast('announcement', {
+  message: 'Hello everyone!'
+});
+```
+
+#### `getSockets(): Promise<ServerSocket[]>`
+
+Get all connected sockets in this namespace.
+
+```typescript
+const sockets = await namespace.getSockets();
+console.log(`${sockets.length} users in namespace`);
+```
+
+## Use Cases
+
+### 1. Multi-Tenant Application
+
+```typescript
+// Create namespace per tenant
+function createTenantNamespace(tenantId: string) {
+  const ns = createNamespace(server, `/tenant/${tenantId}`);
+  
+  ns.onConnect(async (socket) => {
+    // Verify tenant access
+    if (socket.get('tenantId') !== tenantId) {
+      await socket.emit('error', { message: 'Access denied' });
+      return;
+    }
+    
+    await socket.join('main');
+  });
+  
+  return ns;
+}
+
+// Use per tenant
+const tenantA = createTenantNamespace('tenant-a');
+const tenantB = createTenantNamespace('tenant-b');
+```
+
+### 2. Gaming Application
+
+```typescript
+// Lobby namespace
+const lobbyNs = createNamespace(server, '/lobby');
+lobbyNs.onMessage('find:game', async (socket) => {
+  const gameId = await matchmaker.findGame(socket.id);
+  await socket.emit('game:found', { gameId });
+});
+
+// Game namespace (per game instance)
+function createGameNamespace(gameId: string) {
+  const gameNs = createNamespace(server, `/game/${gameId}`);
+  
+  gameNs.onConnect(async (socket) => {
+    await socket.join('players');
+  });
+  
+  gameNs.onMessage('move', async (socket, data) => {
+    // Process game move
+    await socket.broadcastToRoom('players', 'move', data);
+  });
+  
+  return gameNs;
+}
+```
+
+### 3. Real-Time Dashboard
+
+```typescript
+// Data namespace
+const dataNs = createNamespace(server, '/data');
+dataNs.onConnect(async (socket) => {
+  // Send initial data
+  const initialData = await fetchDashboardData();
+  await socket.emit('data:initial', initialData);
+  
+  // Subscribe to updates
+  await socket.join('dashboard-updates');
+});
+
+// Control namespace
+const controlNs = createNamespace(server, '/control');
+controlNs.onMessage('refresh', async (socket) => {
+  const data = await fetchDashboardData();
+  await dataNs.broadcast('data:update', data);
+});
+```
+
+## Best Practices
+
+- Use namespaces to separate logical concerns
+- Implement authentication per namespace
+- Avoid too many namespaces (impacts performance)
+- Name namespaces descriptively: `/chat`, `/admin`, `/notifications`
+- Document namespace purposes and events
+- Use rooms within namespaces for finer-grained grouping
+
+## Namespace vs Rooms
+
+| Feature | Namespaces | Rooms |
+|---------|------------|-------|
+| Purpose | Separate functionality | Group users |
+| Client | Different connections | Same connection |
+| Events | Isolated | Shared |
+| Use Case | Different features | User groups |
+
+**When to use:**
+- **Namespaces**: Different types of functionality (chat vs admin)
+- **Rooms**: Grouping within same functionality (chat rooms)
+
+## Performance Considerations
+
+- Each namespace maintains its own state
+- Too many namespaces increases Redis overhead
+- Consider using rooms within a single namespace instead
+- Namespaces add minimal overhead (<1ms per operation)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Rooms" icon="door-open" href="/concepts/rooms">
+    Learn about rooms
+  </Card>
+  <Card title="Middleware" icon="layer-group" href="/api-reference/utils/middleware">
+    Add authentication
+  </Card>
+</CardGroup>

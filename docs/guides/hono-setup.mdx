@@ -1,0 +1,361 @@
+---
+title: Hono Setup
+description: 'Deploy socket-serve with Hono on serverless platforms'
+---
+
+# Hono Integration Guide
+
+This guide shows you how to integrate socket-serve with Hono, a lightweight web framework that's perfect for edge and serverless environments.
+
+## Prerequisites
+
+```bash
+npm install hono socket-serve ioredis
+```
+
+## Basic Setup
+
+### 1. Create Socket Server
+
+Create a file `src/socket.ts`:
+
+```typescript
+import { SocketServer } from 'socket-serve/server';
+
+export const socketServer = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+  ttl: 3600,
+});
+
+// Connection handler
+socketServer.onConnect((socket) => {
+  console.log('Client connected:', socket.id);
+  
+  // Send welcome message
+  socket.emit('welcome', { message: 'Connected to server!' });
+});
+
+// Message handlers
+socketServer.onMessage('chat', async (socket, data) => {
+  console.log('Chat message:', data);
+  
+  // Broadcast to all clients
+  await socket.broadcast('chat', {
+    userId: socket.id,
+    message: data.message,
+    timestamp: Date.now()
+  });
+});
+
+socketServer.onDisconnect((socket) => {
+  console.log('Client disconnected:', socket.id);
+});
+
+export default socketServer;
+```
+
+### 2. Create Hono Routes
+
+Create `src/index.ts`:
+
+```typescript
+import { Hono } from 'hono';
+import { socketServer } from './socket';
+
+const app = new Hono();
+
+// Health check
+app.get('/', (c) => {
+  return c.json({ status: 'ok', service: 'socket-serve' });
+});
+
+// Socket connection endpoint (SSE)
+app.get('/socket', async (c) => {
+  const sessionId = c.req.query('sessionId') || crypto.randomUUID();
+  
+  // Set SSE headers
+  c.header('Content-Type', 'text/event-stream');
+  c.header('Cache-Control', 'no-cache');
+  c.header('Connection', 'keep-alive');
+  
+  const stream = new ReadableStream({
+    async start(controller) {
+      // Send session ID
+      controller.enqueue(`data: ${JSON.stringify({ 
+        type: 'session', 
+        sessionId 
+      })}\n\n`);
+      
+      // Handle connection
+      await socketServer.handleConnect(sessionId, {
+        send: (data) => {
+          controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
+        }
+      });
+      
+      // Keep connection alive with heartbeat
+      const heartbeat = setInterval(() => {
+        try {
+          controller.enqueue(`: heartbeat\n\n`);
+        } catch (e) {
+          clearInterval(heartbeat);
+        }
+      }, 30000);
+      
+      // Cleanup on close
+      c.req.raw.signal.addEventListener('abort', async () => {
+        clearInterval(heartbeat);
+        await socketServer.handleDisconnect(sessionId);
+        controller.close();
+      });
+    }
+  });
+  
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    }
+  });
+});
+
+// Socket message endpoint
+app.post('/socket', async (c) => {
+  const body = await c.req.json();
+  const { sessionId, event, data } = body;
+  
+  if (!sessionId) {
+    return c.json({ error: 'Session ID required' }, 400);
+  }
+  
+  await socketServer.handleMessage(sessionId, event, data);
+  
+  return c.json({ success: true });
+});
+
+export default app;
+```
+
+### 3. Deploy to Cloudflare Workers
+
+Create `wrangler.toml`:
+
+```toml
+name = "socket-serve-hono"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+REDIS_URL = "your-redis-url"
+
+# Or use secrets for sensitive data
+# Run: wrangler secret put REDIS_URL
+```
+
+Deploy:
+
+```bash
+npm install -D wrangler
+npx wrangler deploy
+```
+
+## Vercel Deployment
+
+Create `api/socket.ts`:
+
+```typescript
+import { Hono } from 'hono';
+import { handle } from 'hono/vercel';
+import { socketServer } from '../src/socket';
+
+const app = new Hono().basePath('/api');
+
+app.get('/socket', async (c) => {
+  // Same SSE handler as above
+});
+
+app.post('/socket', async (c) => {
+  // Same POST handler as above
+});
+
+export const GET = handle(app);
+export const POST = handle(app);
+```
+
+## Client Usage
+
+```typescript
+import { connect } from 'socket-serve/client';
+
+const socket = connect('https://your-app.workers.dev/socket');
+
+socket.on('connect', () => {
+  console.log('Connected!');
+});
+
+socket.on('chat', (data) => {
+  console.log('Chat:', data);
+});
+
+socket.emit('chat', { message: 'Hello from Hono!' });
+```
+
+## Advanced: Middleware Integration
+
+```typescript
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
+import { socketServer } from './socket';
+
+const app = new Hono();
+
+// Hono middleware
+app.use('*', cors());
+app.use('*', logger());
+
+// Authentication middleware
+app.use('/socket', async (c, next) => {
+  const token = c.req.header('Authorization')?.replace('Bearer ', '');
+  
+  if (!token) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  // Verify token
+  const user = await verifyToken(token);
+  c.set('user', user);
+  
+  await next();
+});
+
+app.get('/socket', async (c) => {
+  const user = c.get('user');
+  const sessionId = c.req.query('sessionId') || crypto.randomUUID();
+  
+  // Store user info in socket
+  socketServer.setMetadata(sessionId, { user });
+  
+  // ... SSE setup
+});
+```
+
+## Room-Based Chat Example
+
+```typescript
+socketServer.onMessage('join:room', async (socket, { roomId }) => {
+  await socket.join(roomId);
+  
+  // Notify room
+  await socket.broadcastToRoom(roomId, 'user:joined', {
+    userId: socket.id,
+    roomId
+  });
+});
+
+socketServer.onMessage('room:message', async (socket, { roomId, message }) => {
+  await socket.broadcastToRoom(roomId, 'room:message', {
+    userId: socket.id,
+    message,
+    timestamp: Date.now()
+  });
+});
+```
+
+## Environment Variables
+
+```bash
+# .env.local
+REDIS_URL=redis://localhost:6379
+
+# Production (Cloudflare Workers)
+wrangler secret put REDIS_URL
+```
+
+## Testing
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import app from './src/index';
+
+describe('Socket Server', () => {
+  it('should handle connections', async () => {
+    const res = await app.request('/socket?sessionId=test-123');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/event-stream');
+  });
+  
+  it('should handle messages', async () => {
+    const res = await app.request('/socket', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'test-123',
+        event: 'chat',
+        data: { message: 'test' }
+      })
+    });
+    expect(res.status).toBe(200);
+  });
+});
+```
+
+## Performance Tips
+
+1. **Use Upstash Redis** for edge compatibility:
+   ```typescript
+   import { UpstashStateManager } from 'socket-serve/redis/upstash';
+   
+   const socketServer = new SocketServer({
+     stateManager: new UpstashStateManager({
+       url: process.env.UPSTASH_URL!,
+       token: process.env.UPSTASH_TOKEN!
+     })
+   });
+   ```
+
+2. **Enable Compression** for large messages:
+   ```typescript
+   const socketServer = new SocketServer({
+     redisUrl: process.env.REDIS_URL!,
+     enableCompression: true,
+     compressionThreshold: 1024
+   });
+   ```
+
+3. **Use Polling Transport** if SSE is blocked:
+   ```typescript
+   // Client-side
+   const socket = connect(url, { transport: 'polling' });
+   ```
+
+## Troubleshooting
+
+### Issue: SSE Connection Drops
+
+**Solution:** Implement heartbeat in SSE stream:
+```typescript
+const heartbeat = setInterval(() => {
+  controller.enqueue(`: heartbeat\n\n`);
+}, 30000);
+```
+
+### Issue: CORS Errors
+
+**Solution:** Add CORS middleware:
+```typescript
+import { cors } from 'hono/cors';
+app.use('*', cors());
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Express Setup" icon="node" href="/guides/express-setup">
+    Use with Express
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/guides/deployment">
+    Deploy to production
+  </Card>
+</CardGroup>

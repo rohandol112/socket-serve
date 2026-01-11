@@ -1,0 +1,514 @@
+---
+title: Fastify Setup
+description: 'Deploy socket-serve with Fastify on Node.js servers'
+---
+
+# Fastify Integration Guide
+
+This guide shows you how to integrate socket-serve with Fastify, a fast and low-overhead web framework for Node.js.
+
+## Prerequisites
+
+```bash
+npm install fastify socket-serve ioredis
+```
+
+## Basic Setup
+
+### 1. Create Socket Server
+
+Create `src/socket.js` or `src/socket.ts`:
+
+```typescript
+import { SocketServer } from 'socket-serve/server';
+
+export const socketServer = new SocketServer({
+  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  ttl: 3600,
+});
+
+// Connection handler
+socketServer.onConnect((socket) => {
+  console.log('Client connected:', socket.id);
+  socket.emit('welcome', { message: 'Connected!' });
+});
+
+// Message handlers
+socketServer.onMessage('chat', async (socket, data) => {
+  console.log('Chat message:', data);
+  await socket.broadcast('chat', {
+    userId: socket.id,
+    message: data.message,
+    timestamp: Date.now()
+  });
+});
+
+socketServer.onDisconnect((socket) => {
+  console.log('Client disconnected:', socket.id);
+});
+```
+
+### 2. Create Fastify Server
+
+Create `src/server.ts`:
+
+```typescript
+import Fastify from 'fastify';
+import { socketServer } from './socket';
+
+const fastify = Fastify({
+  logger: true
+});
+
+// Health check
+fastify.get('/', async (request, reply) => {
+  return { status: 'ok', service: 'socket-serve' };
+});
+
+// SSE endpoint for socket connections
+fastify.get('/socket', async (request, reply) => {
+  const sessionId = (request.query as any).sessionId || crypto.randomUUID();
+  
+  reply.raw.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  });
+  
+  // Send session ID
+  reply.raw.write(`data: ${JSON.stringify({ 
+    type: 'session', 
+    sessionId 
+  })}\n\n`);
+  
+  // Handle connection
+  await socketServer.handleConnect(sessionId, {
+    send: (data) => {
+      reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    }
+  });
+  
+  // Heartbeat
+  const heartbeat = setInterval(() => {
+    reply.raw.write(`: heartbeat\n\n`);
+  }, 30000);
+  
+  // Cleanup on close
+  request.raw.on('close', async () => {
+    clearInterval(heartbeat);
+    await socketServer.handleDisconnect(sessionId);
+  });
+  
+  return reply;
+});
+
+// POST endpoint for sending messages
+fastify.post('/socket', async (request, reply) => {
+  const { sessionId, event, data } = request.body as any;
+  
+  if (!sessionId) {
+    return reply.code(400).send({ error: 'Session ID required' });
+  }
+  
+  await socketServer.handleMessage(sessionId, event, data);
+  return { success: true };
+});
+
+// Start server
+const start = async () => {
+  try {
+    await fastify.listen({ port: 3000, host: '0.0.0.0' });
+    console.log('Server listening on http://localhost:3000');
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();
+```
+
+### 3. Run the Server
+
+```bash
+# Development
+npx tsx src/server.ts
+
+# Or with nodemon
+npx nodemon --exec tsx src/server.ts
+
+# Production
+npm run build
+node dist/server.js
+```
+
+## TypeScript Configuration
+
+Update `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"]
+}
+```
+
+## Client Usage
+
+```typescript
+import { connect } from 'socket-serve/client';
+
+const socket = connect('http://localhost:3000/socket');
+
+socket.on('connect', () => {
+  console.log('Connected!');
+});
+
+socket.on('chat', (data) => {
+  console.log('Chat:', data);
+});
+
+socket.emit('chat', { message: 'Hello from Fastify!' });
+```
+
+## Advanced: Fastify Plugins
+
+### Create a Socket Plugin
+
+Create `src/plugins/socket.ts`:
+
+```typescript
+import fp from 'fastify-plugin';
+import { SocketServer } from 'socket-serve/server';
+
+export default fp(async (fastify, opts) => {
+  const socketServer = new SocketServer({
+    redisUrl: process.env.REDIS_URL!,
+    ttl: 3600,
+  });
+  
+  // Setup handlers
+  socketServer.onConnect((socket) => {
+    fastify.log.info(`Client connected: ${socket.id}`);
+  });
+  
+  socketServer.onMessage('chat', async (socket, data) => {
+    await socket.broadcast('chat', data);
+  });
+  
+  // Decorate fastify with socket server
+  fastify.decorate('socketServer', socketServer);
+}, {
+  name: 'socket-serve'
+});
+
+// Type augmentation
+declare module 'fastify' {
+  interface FastifyInstance {
+    socketServer: SocketServer;
+  }
+}
+```
+
+Use the plugin:
+
+```typescript
+import Fastify from 'fastify';
+import socketPlugin from './plugins/socket';
+
+const fastify = Fastify({ logger: true });
+
+// Register plugin
+await fastify.register(socketPlugin);
+
+// Use in routes
+fastify.get('/stats', async (request, reply) => {
+  const stats = await fastify.socketServer.getStats();
+  return stats;
+});
+```
+
+## Authentication with Fastify
+
+```typescript
+import fastifyJwt from '@fastify/jwt';
+
+// Register JWT plugin
+await fastify.register(fastifyJwt, {
+  secret: process.env.JWT_SECRET!
+});
+
+// Protected socket route
+fastify.get('/socket', {
+  preHandler: async (request, reply) => {
+    try {
+      await request.jwtVerify();
+    } catch (err) {
+      reply.code(401).send({ error: 'Unauthorized' });
+    }
+  }
+}, async (request, reply) => {
+  const user = request.user;
+  const sessionId = (request.query as any).sessionId || crypto.randomUUID();
+  
+  // Store user in socket metadata
+  socketServer.setMetadata(sessionId, { user });
+  
+  // ... SSE setup
+});
+```
+
+## CORS Configuration
+
+```typescript
+import fastifyCors from '@fastify/cors';
+
+await fastify.register(fastifyCors, {
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://yourdomain.com'] 
+    : true,
+  credentials: true
+});
+```
+
+## Rate Limiting
+
+```typescript
+import fastifyRateLimit from '@fastify/rate-limit';
+
+await fastify.register(fastifyRateLimit, {
+  max: 100,
+  timeWindow: '1 minute'
+});
+```
+
+## Room-Based Chat
+
+```typescript
+socketServer.onMessage('join:room', async (socket, { roomId }) => {
+  await socket.join(roomId);
+  
+  const members = await socket.getRoomMembers(roomId);
+  await socket.broadcastToRoom(roomId, 'room:update', {
+    action: 'joined',
+    userId: socket.id,
+    members
+  });
+});
+
+socketServer.onMessage('leave:room', async (socket, { roomId }) => {
+  await socket.leave(roomId);
+  
+  await socket.broadcastToRoom(roomId, 'room:update', {
+    action: 'left',
+    userId: socket.id
+  });
+});
+
+socketServer.onMessage('room:message', async (socket, { roomId, message }) => {
+  await socket.broadcastToRoom(roomId, 'message', {
+    userId: socket.id,
+    message,
+    timestamp: Date.now()
+  });
+});
+```
+
+## Production Deployment
+
+### Docker Setup
+
+Create `Dockerfile`:
+
+```dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy source
+COPY . .
+
+# Build TypeScript
+RUN npm run build
+
+EXPOSE 3000
+
+CMD ["node", "dist/server.js"]
+```
+
+Create `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+    depends_on:
+      - redis
+  
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+```
+
+Run:
+
+```bash
+docker-compose up -d
+```
+
+### PM2 Deployment
+
+```bash
+npm install -g pm2
+
+# Start
+pm2 start dist/server.js --name socket-serve
+
+# Monitor
+pm2 monit
+
+# Logs
+pm2 logs socket-serve
+```
+
+## Testing with Fastify
+
+```typescript
+import { test } from 'tap';
+import { build } from './app';
+
+test('socket connection', async (t) => {
+  const app = await build();
+  
+  const response = await app.inject({
+    method: 'GET',
+    url: '/socket?sessionId=test-123'
+  });
+  
+  t.equal(response.statusCode, 200);
+  t.equal(response.headers['content-type'], 'text/event-stream');
+  
+  await app.close();
+});
+
+test('socket message', async (t) => {
+  const app = await build();
+  
+  const response = await app.inject({
+    method: 'POST',
+    url: '/socket',
+    payload: {
+      sessionId: 'test-123',
+      event: 'chat',
+      data: { message: 'test' }
+    }
+  });
+  
+  t.equal(response.statusCode, 200);
+  t.same(response.json(), { success: true });
+  
+  await app.close();
+});
+```
+
+## Monitoring & Metrics
+
+```typescript
+import fastifyMetrics from 'fastify-metrics';
+
+await fastify.register(fastifyMetrics, {
+  endpoint: '/metrics'
+});
+
+// Custom metrics
+socketServer.onConnect((socket) => {
+  fastify.metrics.client.inc('socket_connections_total');
+});
+
+socketServer.onDisconnect((socket) => {
+  fastify.metrics.client.dec('socket_connections_active');
+});
+```
+
+## Performance Tips
+
+1. **Cluster Mode** for multiple CPU cores:
+   ```typescript
+   import cluster from 'cluster';
+   import os from 'os';
+   
+   if (cluster.isPrimary) {
+     const cpus = os.cpus().length;
+     for (let i = 0; i < cpus; i++) {
+       cluster.fork();
+     }
+   } else {
+     start();
+   }
+   ```
+
+2. **Compression**:
+   ```typescript
+   import fastifyCompress from '@fastify/compress';
+   await fastify.register(fastifyCompress);
+   ```
+
+3. **Caching**:
+   ```typescript
+   import fastifyCaching from '@fastify/caching';
+   await fastify.register(fastifyCaching);
+   ```
+
+## Troubleshooting
+
+### Issue: SSE Connection Closes Immediately
+
+**Solution:** Ensure you're not calling `reply.send()`:
+```typescript
+// Don't do this:
+// return reply.send(data);
+
+// Do this:
+return reply;
+```
+
+### Issue: Memory Leaks
+
+**Solution:** Clean up event listeners:
+```typescript
+request.raw.on('close', async () => {
+  clearInterval(heartbeat);
+  await socketServer.handleDisconnect(sessionId);
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Next.js Setup" icon="react" href="/guides/nextjs-setup">
+    Use with Next.js
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/guides/deployment">
+    Deploy to production
+  </Card>
+</CardGroup>

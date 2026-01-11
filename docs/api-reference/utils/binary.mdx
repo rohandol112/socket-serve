@@ -1,0 +1,337 @@
+---
+title: Binary Data
+description: 'Handle binary data transmission efficiently'
+---
+
+# Binary Data Support
+
+socket-serve provides utilities for transmitting binary data like files, images, and ArrayBuffers. Since HTTP doesn't directly support binary transmission like WebSockets, we handle the encoding/decoding for you.
+
+## Installation
+
+Binary utilities are included in the main socket-serve package:
+
+```typescript
+import { encodeBinary, decodeBinary } from 'socket-serve/utils/binary';
+```
+
+## Sending Binary Data
+
+### From Client
+
+```typescript
+import { connect } from 'socket-serve/client';
+import { encodeBinary } from 'socket-serve/utils/binary';
+
+const socket = connect('http://localhost:3000/api/socket');
+
+// Send ArrayBuffer
+const arrayBuffer = new ArrayBuffer(1024);
+const encoded = encodeBinary(arrayBuffer);
+socket.emit('upload', encoded);
+
+// Send Blob
+const blob = new Blob(['file content'], { type: 'text/plain' });
+const blobBuffer = await blob.arrayBuffer();
+socket.emit('upload', encodeBinary(blobBuffer));
+
+// Send File
+const file = document.getElementById('file').files[0];
+const fileBuffer = await file.arrayBuffer();
+socket.emit('upload', {
+  name: file.name,
+  data: encodeBinary(fileBuffer),
+  type: file.type
+});
+```
+
+### From Server
+
+```typescript
+import { encodeBinary } from 'socket-serve/utils/binary';
+import fs from 'fs';
+
+server.onMessage('download', async (socket, { filename }) => {
+  // Read file as buffer
+  const buffer = fs.readFileSync(`./files/${filename}`);
+  
+  // Encode and send
+  await socket.emit('file', {
+    name: filename,
+    data: encodeBinary(buffer),
+    size: buffer.length
+  });
+});
+```
+
+## Receiving Binary Data
+
+### Client Side
+
+```typescript
+import { decodeBinary } from 'socket-serve/utils/binary';
+
+socket.on('file', (data) => {
+  const buffer = decodeBinary(data.data);
+  
+  // Create blob for download
+  const blob = new Blob([buffer], { type: data.type });
+  const url = URL.createObjectURL(blob);
+  
+  // Trigger download
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = data.name;
+  a.click();
+});
+```
+
+### Server Side
+
+```typescript
+import { decodeBinary } from 'socket-serve/utils/binary';
+import fs from 'fs';
+
+server.onMessage('upload', async (socket, data) => {
+  const buffer = decodeBinary(data.data);
+  
+  // Save to file
+  fs.writeFileSync(`./uploads/${data.name}`, buffer);
+  
+  await socket.emit('upload:complete', {
+    size: buffer.length,
+    filename: data.name
+  });
+});
+```
+
+## API Reference
+
+### `encodeBinary(data)`
+
+Encode binary data for transmission.
+
+**Parameters:**
+- `data: ArrayBuffer | Buffer | Uint8Array` - Binary data to encode
+
+**Returns:** `string` - Base64-encoded string
+
+**Example:**
+```typescript
+const encoded = encodeBinary(buffer);
+socket.emit('data', { binary: encoded });
+```
+
+### `decodeBinary(data)`
+
+Decode received binary data.
+
+**Parameters:**
+- `data: string` - Base64-encoded binary data
+
+**Returns:** `Buffer` - Decoded binary data
+
+**Example:**
+```typescript
+const buffer = decodeBinary(encodedString);
+fs.writeFileSync('output.bin', buffer);
+```
+
+### `isBinary(data)`
+
+Check if data is binary format.
+
+**Parameters:**
+- `data: any` - Data to check
+
+**Returns:** `boolean` - True if data is binary
+
+**Example:**
+```typescript
+if (isBinary(data)) {
+  const buffer = decodeBinary(data);
+}
+```
+
+## File Upload Example
+
+### Client
+
+```typescript
+import { connect } from 'socket-serve/client';
+import { encodeBinary } from 'socket-serve/utils/binary';
+
+const socket = connect('http://localhost:3000/api/socket');
+
+async function uploadFile(file: File) {
+  const buffer = await file.arrayBuffer();
+  
+  socket.emit('upload:start', {
+    name: file.name,
+    size: file.size,
+    type: file.type
+  });
+  
+  // Send in chunks for large files
+  const chunkSize = 64 * 1024; // 64KB chunks
+  for (let i = 0; i < buffer.byteLength; i += chunkSize) {
+    const chunk = buffer.slice(i, i + chunkSize);
+    socket.emit('upload:chunk', {
+      data: encodeBinary(chunk),
+      offset: i
+    });
+  }
+  
+  socket.emit('upload:complete', { name: file.name });
+}
+
+socket.on('upload:progress', (progress) => {
+  console.log(`Upload: ${progress}%`);
+});
+```
+
+### Server
+
+```typescript
+import { decodeBinary } from 'socket-serve/utils/binary';
+import fs from 'fs';
+
+const uploads = new Map();
+
+server.onMessage('upload:start', async (socket, { name, size }) => {
+  const uploadId = socket.id;
+  uploads.set(uploadId, {
+    name,
+    size,
+    received: 0,
+    stream: fs.createWriteStream(`./uploads/${name}`)
+  });
+});
+
+server.onMessage('upload:chunk', async (socket, { data, offset }) => {
+  const upload = uploads.get(socket.id);
+  if (!upload) return;
+  
+  const buffer = decodeBinary(data);
+  upload.stream.write(buffer);
+  upload.received += buffer.length;
+  
+  const progress = Math.round((upload.received / upload.size) * 100);
+  await socket.emit('upload:progress', progress);
+});
+
+server.onMessage('upload:complete', async (socket, { name }) => {
+  const upload = uploads.get(socket.id);
+  if (!upload) return;
+  
+  upload.stream.end();
+  uploads.delete(socket.id);
+  
+  await socket.emit('upload:success', {
+    name,
+    size: upload.received
+  });
+});
+```
+
+## Image Processing Example
+
+```typescript
+import { encodeBinary, decodeBinary } from 'socket-serve/utils/binary';
+import sharp from 'sharp';
+
+server.onMessage('image:process', async (socket, { image, width, height }) => {
+  // Decode image
+  const buffer = decodeBinary(image);
+  
+  // Process with sharp
+  const processed = await sharp(buffer)
+    .resize(width, height)
+    .jpeg({ quality: 80 })
+    .toBuffer();
+  
+  // Send back
+  await socket.emit('image:processed', {
+    data: encodeBinary(processed)
+  });
+});
+```
+
+## Best Practices
+
+- **Chunk Large Files**: Split files > 1MB into chunks
+- **Show Progress**: Provide upload/download progress feedback
+- **Validate Types**: Check file types before processing
+- **Limit Sizes**: Set maximum file size limits
+- **Use Compression**: Combine with compression for text-based binary formats
+- **Clean Up**: Delete temporary files after processing
+- **Error Handling**: Handle network failures gracefully
+
+## Performance Tips
+
+1. **Use Streams for Large Files**
+   ```typescript
+   import { createReadStream } from 'fs';
+   
+   const stream = createReadStream('large-file.bin');
+   stream.on('data', (chunk) => {
+     socket.emit('chunk', encodeBinary(chunk));
+   });
+   ```
+
+2. **Buffer Pool for Memory Efficiency**
+   ```typescript
+   const pool = Buffer.allocUnsafe(64 * 1024);
+   // Reuse buffer for multiple operations
+   ```
+
+3. **Parallel Processing**
+   ```typescript
+   await Promise.all(chunks.map(chunk => 
+     processChunk(decodeBinary(chunk))
+   ));
+   ```
+
+## Size Limits
+
+Recommended maximum sizes:
+
+| Use Case | Max Size | Recommendation |
+|----------|----------|----------------|
+| Images | 5 MB | Compress before sending |
+| Documents | 10 MB | Use chunking |
+| Videos | 100 MB | Use dedicated file storage |
+| Small Assets | 1 MB | Can send directly |
+
+## Troubleshooting
+
+### Issue: Out of Memory
+
+**Solution:** Use chunking for large files:
+```typescript
+const chunkSize = 64 * 1024; // 64KB
+for (let i = 0; i < buffer.length; i += chunkSize) {
+  const chunk = buffer.slice(i, i + chunkSize);
+  await sendChunk(chunk);
+}
+```
+
+### Issue: Slow Transmission
+
+**Solution:** Enable compression for compressible formats:
+```typescript
+import { compress } from 'socket-serve/utils/compression';
+
+const compressed = await compress(encodeBinary(buffer));
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Compression" icon="compress" href="/api-reference/utils/compression">
+    Compress binary data
+  </Card>
+  <Card title="Examples" icon="code" href="/examples/introduction">
+    View examples
+  </Card>
+</CardGroup>

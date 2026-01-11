@@ -1,7 +1,6 @@
 import { RedisStateManager } from "../redis/state-manager.js";
 import { ServerSocketImpl } from "./socket.js";
 import type {
-  SocketServeConfig,
   SocketHandlers,
   ConnectHandler,
   MessageHandler,
@@ -9,17 +8,33 @@ import type {
 } from "../types.js";
 import { randomBytes } from "crypto";
 
+export interface SocketServerConfig {
+  redisUrl: string;
+  ttl?: number;
+}
+
 export class SocketServer {
   private stateManager: RedisStateManager;
   private handlers: SocketHandlers = {
     messages: new Map(),
   };
 
-  constructor(config: SocketServeConfig) {
+  constructor(config: SocketServerConfig) {
     this.stateManager = new RedisStateManager(
       config.redisUrl,
       config.ttl || 3600
     );
+  }
+
+  // Socket.io style API
+  on(event: string, handler: ConnectHandler | MessageHandler): void {
+    if (event === 'connection' || event === 'connect') {
+      this.handlers.onConnect = handler as ConnectHandler;
+    } else if (event === 'disconnect') {
+      this.handlers.onDisconnect = handler as DisconnectHandler;
+    } else {
+      this.handlers.messages.set(event, handler as MessageHandler);
+    }
   }
 
   onConnect(handler: ConnectHandler): void {

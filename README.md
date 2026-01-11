@@ -1,4 +1,4 @@
-# ⚡ socket-serve
+# socket-serve
 
 > Real-time socket-like API for serverless platforms. Deploy Socket.IO-style code to Vercel, Netlify, and Cloudflare Workers without WebSockets.
 
@@ -7,44 +7,52 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
 [![Documentation](https://img.shields.io/badge/docs-Mintlify-blue)](https://socket-serve.mintlify.app)
 [![Tested](https://img.shields.io/badge/tested-passing-brightgreen)](README.md)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://www.npmjs.com/package/socket-serve)
 
 <div align="center">
 
-**[📚 Documentation](https://socket-serve.mintlify.app)** • 
-**[🚀 Quick Start](https://socket-serve.mintlify.app/quickstart)** • 
-**[📦 npm Package](https://www.npmjs.com/package/socket-serve)** • 
-**[💬 GitHub Issues](https://github.com/rohandol112/socket-serve/issues)**
+**[Documentation](https://socket-serve.mintlify.app)** • 
+**[Quick Start](https://socket-serve.mintlify.app/quickstart)** • 
+**[npm Package](https://www.npmjs.com/package/socket-serve)** • 
+**[GitHub Issues](https://github.com/rohandol112/socket-serve/issues)**
 
 </div>
 
 ---
 
-## 🎯 What is socket-serve?
+## What is socket-serve?
 
 **socket-serve** lets you write real-time applications with a Socket.IO-like API, but deploy them to serverless platforms that don't support WebSockets.
 
 Instead of WebSockets, it uses:
-- 📤 **HTTP/POST** for client → server communication
-- 📥 **Server-Sent Events (SSE)** for server → client streaming
-- 💾 **Redis** for state persistence and pub/sub
+- **HTTP/POST** for client to server communication
+- **Server-Sent Events (SSE)** for server to client streaming
+- **Redis** for state persistence and pub/sub
 
 **Perfect for:**
-- ✅ Vercel, Netlify, Cloudflare Workers
-- ✅ Next.js App Router serverless functions
-- ✅ Any platform without WebSocket support
-- ✅ Projects that need persistent state across deployments
+- Vercel, Netlify, Cloudflare Workers
+- Next.js App Router serverless functions
+- Express, Fastify, Hono - all major frameworks
+- Any platform without WebSocket support
+- Projects that need persistent state across deployments
 
-**Status:** ✅ Core functionality tested and working with Redis in local environment
+**Supported Frameworks:**
+- **Next.js** - Serverless & Edge Runtime
+- **Express** - Traditional Node.js
+- **Hono** - Edge computing & Cloudflare Workers
+- **Fastify** - High-performance Node.js
+
+**Status:** Production ready v1.0.0 - All tests passing, fully documented
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [🚀 Quick Start](#-quick-start) - Get started in 5 minutes
-- [🚢 Deploy to Vercel](#-deployment-to-vercel) - **Main use case!** Complete deployment guide
-- [📚 API Reference](#-api-reference) - Server and client APIs
-- [🧪 Testing](#-testing) - Verified features and test results
-- [🤝 Contributing](#-contributing) - Development setup
+- [Quick Start](#quick-start) - Get started in 5 minutes
+- [Deploy to Vercel](#deployment-to-vercel) - Complete deployment guide
+- [API Reference](#api-reference) - Server and client APIs
+- [Testing](#testing) - Verified features and test results
+- [Contributing](#contributing) - Development setup
 
 ---
 

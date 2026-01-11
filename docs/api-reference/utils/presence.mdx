@@ -1,0 +1,287 @@
+---
+title: Presence Tracking
+description: 'Track online users and their status in real-time'
+---
+
+# Presence Tracking
+
+The PresenceManager helps you track which users are currently online and their status. It's useful for showing active users, user lists, or online indicators.
+
+## Installation
+
+Presence tracking is included in the main socket-serve package:
+
+```typescript
+import { PresenceManager } from 'socket-serve/utils/presence';
+```
+
+## Basic Usage
+
+```typescript
+import { SocketServer } from 'socket-serve/server';
+import { PresenceManager } from 'socket-serve/utils/presence';
+
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+});
+
+const presence = new PresenceManager(server);
+
+// Track when users come online
+presence.onJoin((userId, metadata) => {
+  console.log(`${userId} is now online`);
+  
+  // Notify all users
+  server.broadcast('user:online', {
+    userId,
+    ...metadata
+  });
+});
+
+// Track when users go offline
+presence.onLeave((userId) => {
+  console.log(`${userId} went offline`);
+  
+  server.broadcast('user:offline', { userId });
+});
+```
+
+## Track User Status
+
+```typescript
+// Set user status when they connect
+server.onConnect(async (socket) => {
+  const userId = socket.get('userId');
+  
+  await presence.setStatus(userId, {
+    status: 'online',
+    lastSeen: Date.now(),
+    device: 'web'
+  });
+});
+
+// Update status
+server.onMessage('status:update', async (socket, data) => {
+  const userId = socket.get('userId');
+  
+  await presence.setStatus(userId, {
+    status: data.status, // 'online', 'away', 'busy', etc.
+    customMessage: data.message
+  });
+  
+  // Broadcast status change
+  await socket.broadcast('user:status', {
+    userId,
+    status: data.status
+  });
+});
+```
+
+## Get Online Users
+
+```typescript
+// Get all online users
+const onlineUsers = await presence.getOnlineUsers();
+console.log(`${onlineUsers.length} users online`);
+
+// Get users in a specific room
+const roomUsers = await presence.getUsersInRoom('chat-room-1');
+
+// Check if specific user is online
+const isOnline = await presence.isOnline('user-123');
+```
+
+## User Metadata
+
+Store additional information about users:
+
+```typescript
+await presence.setStatus(userId, {
+  status: 'online',
+  name: 'John Doe',
+  avatar: 'https://example.com/avatar.jpg',
+  location: 'New York',
+  lastActivity: Date.now()
+});
+
+// Retrieve user metadata
+const userInfo = await presence.getUserInfo(userId);
+```
+
+## Presence in Rooms
+
+Track presence per room:
+
+```typescript
+// User joins a room
+server.onMessage('join:room', async (socket, { roomId }) => {
+  const userId = socket.get('userId');
+  
+  await socket.join(roomId);
+  await presence.joinRoom(userId, roomId);
+  
+  // Get all users in room
+  const roomMembers = await presence.getUsersInRoom(roomId);
+  
+  // Notify room
+  await socket.broadcastToRoom(roomId, 'room:members', {
+    users: roomMembers
+  });
+});
+
+// User leaves a room
+server.onMessage('leave:room', async (socket, { roomId }) => {
+  const userId = socket.get('userId');
+  
+  await socket.leave(roomId);
+  await presence.leaveRoom(userId, roomId);
+});
+```
+
+## Heartbeat & Timeouts
+
+Automatically detect when users disconnect:
+
+```typescript
+const presence = new PresenceManager(server, {
+  heartbeatInterval: 30000, // 30 seconds
+  timeout: 60000 // 1 minute
+});
+
+// Client sends heartbeat
+server.onMessage('heartbeat', async (socket) => {
+  const userId = socket.get('userId');
+  await presence.heartbeat(userId);
+});
+
+// Automatically clean up stale connections
+presence.onTimeout((userId) => {
+  console.log(`${userId} timed out`);
+  server.broadcast('user:timeout', { userId });
+});
+```
+
+## API Reference
+
+### `PresenceManager`
+
+#### Constructor
+
+```typescript
+new PresenceManager(server: SocketServer, options?: PresenceOptions)
+```
+
+**Options:**
+- `heartbeatInterval?: number` - How often to check for heartbeats (default: 30000)
+- `timeout?: number` - When to consider user offline (default: 60000)
+
+#### Methods
+
+##### `setStatus(userId: string, metadata: object)`
+
+Set user's online status and metadata.
+
+```typescript
+await presence.setStatus('user-123', {
+  status: 'online',
+  customData: {}
+});
+```
+
+##### `getOnlineUsers(): Promise<string[]>`
+
+Get list of all online user IDs.
+
+##### `getUserInfo(userId: string): Promise<object | null>`
+
+Get user's presence information.
+
+##### `isOnline(userId: string): Promise<boolean>`
+
+Check if user is currently online.
+
+##### `getUsersInRoom(roomId: string): Promise<string[]>`
+
+Get all users in a specific room.
+
+##### `joinRoom(userId: string, roomId: string): Promise<void>`
+
+Mark user as present in a room.
+
+##### `leaveRoom(userId: string, roomId: string): Promise<void>`
+
+Remove user from room presence.
+
+##### `heartbeat(userId: string): Promise<void>`
+
+Update user's last activity timestamp.
+
+#### Events
+
+##### `onJoin(callback: (userId: string, metadata: object) => void)`
+
+Called when a user comes online.
+
+##### `onLeave(callback: (userId: string) => void)`
+
+Called when a user goes offline.
+
+##### `onTimeout(callback: (userId: string) => void)`
+
+Called when a user times out due to inactivity.
+
+## Example: Online Users List
+
+```typescript
+import { SocketServer } from 'socket-serve/server';
+import { PresenceManager } from 'socket-serve/utils/presence';
+
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+});
+
+const presence = new PresenceManager(server);
+
+// Send online users list to new connections
+server.onConnect(async (socket) => {
+  const userId = socket.get('userId');
+  const onlineUsers = await presence.getOnlineUsers();
+  
+  await socket.emit('users:online', { users: onlineUsers });
+  
+  // Mark user as online
+  await presence.setStatus(userId, {
+    status: 'online',
+    connectedAt: Date.now()
+  });
+});
+
+// Handle disconnections
+server.onDisconnect(async (socket) => {
+  const userId = socket.get('userId');
+  await presence.setStatus(userId, {
+    status: 'offline',
+    lastSeen: Date.now()
+  });
+});
+```
+
+## Best Practices
+
+- Always clean up presence data on disconnect
+- Use heartbeats for accurate presence tracking
+- Store minimal metadata to reduce Redis memory
+- Implement timeout handling for abandoned connections
+- Consider using rooms for large-scale presence tracking
+- Cache online user lists for frequently accessed data
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Rooms" icon="door-open" href="/concepts/rooms">
+    Learn about rooms
+  </Card>
+  <Card title="State Management" icon="database" href="/concepts/state-management">
+    Managing state in Redis
+  </Card>
+</CardGroup>

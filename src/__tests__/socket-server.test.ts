@@ -8,7 +8,6 @@ describe("SocketServer", () => {
 
   beforeEach(() => {
     server = new SocketServer({
-      adapter: "nextjs",
       redisUrl: "redis://localhost:6379",
       ttl: 3600,
     });

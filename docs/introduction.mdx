@@ -5,7 +5,7 @@ description: 'Real-time communication library for serverless environments'
 
 # socket-serve
 
-socket-serve is a TypeScript library that provides real-time, bidirectional communication for serverless platforms. It offers a socket.io-compatible API using HTTP-based transports (SSE and polling) instead of WebSockets.
+socket-serve is a TypeScript library that provides real-time, bidirectional communication for serverless platforms. It offers a socket.io-compatible API but uses HTTP-based transports (SSE and polling) instead of WebSockets, making it work on platforms that don't support persistent connections.
 
 ## Installation
 
@@ -25,7 +25,7 @@ pnpm add socket-serve ioredis
 
 </CodeGroup>
 
-Version: **0.6.0** ([npm](https://www.npmjs.com/package/socket-serve))
+Version: **1.0.0** ([npm](https://www.npmjs.com/package/socket-serve))
 
 ## Overview
 
@@ -39,13 +39,17 @@ Traditional WebSocket libraries require persistent connections, which are incomp
 
 ## Features
 
-- Serverless-first architecture (no persistent connections)
-- Multiple transport support (SSE primary, polling fallback)
-- Room-based broadcasting
+- Serverless-first architecture without persistent connections
+- Multiple transport support with SSE as primary and polling as fallback
+- Room-based broadcasting with advanced room operations
 - Message acknowledgments with timeout handling
-- TypeScript support with full type definitions
+- Edge Runtime support for Vercel and Cloudflare Workers
+- Binary data and message compression support
+- Presence tracking and user status management
+- Middleware and namespace support
+- Full TypeScript support with type definitions
 - Framework adapters for Next.js and Express
-- Automatic client reconnection
+- Automatic client reconnection with exponential backoff
 
 ## Quick Example
 

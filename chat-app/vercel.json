@@ -1,0 +1,12 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "REDIS_URL": {
+      "description": "Redis connection URL from Upstash",
+      "required": true
+    }
+  }
+}

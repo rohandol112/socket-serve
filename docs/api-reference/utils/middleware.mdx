@@ -1,0 +1,184 @@
+---
+title: Middleware
+description: 'Chain middleware functions for request processing'
+---
+
+# Middleware
+
+Middleware lets you intercept and process socket connections before they reach your handlers. Think of it as a pipeline where you can add authentication, logging, validation, or any custom logic.
+
+## Installation
+
+Middleware is included in the main socket-serve package:
+
+```typescript
+import { createMiddleware } from 'socket-serve/utils/middleware';
+```
+
+## Basic Usage
+
+```typescript
+import { SocketServer } from 'socket-serve/server';
+import { createMiddleware } from 'socket-serve/utils/middleware';
+
+const server = new SocketServer({
+  redisUrl: process.env.REDIS_URL!,
+});
+
+// Create authentication middleware
+const authMiddleware = createMiddleware(async (socket, next) => {
+  const token = socket.get('token');
+  
+  if (!token) {
+    return next(new Error('No token provided'));
+  }
+  
+  try {
+    const user = await verifyToken(token);
+    socket.set('user', user);
+    next(); // Continue to next middleware or handler
+  } catch (error) {
+    next(new Error('Invalid token'));
+  }
+});
+
+// Apply middleware
+server.use(authMiddleware);
+```
+
+## Middleware Chain
+
+You can chain multiple middleware functions:
+
+```typescript
+// Logging middleware
+const logger = createMiddleware(async (socket, next) => {
+  console.log(`[${new Date().toISOString()}] Connection attempt: ${socket.id}`);
+  next();
+});
+
+// Rate limiting middleware
+const rateLimiter = createMiddleware(async (socket, next) => {
+  const ip = socket.get('ip');
+  const allowed = await checkRateLimit(ip);
+  
+  if (!allowed) {
+    return next(new Error('Rate limit exceeded'));
+  }
+  
+  next();
+});
+
+// Apply middleware in order
+server.use(logger);
+server.use(rateLimiter);
+server.use(authMiddleware);
+```
+
+## Error Handling
+
+Middleware can catch and handle errors:
+
+```typescript
+const errorHandler = createMiddleware(async (socket, next) => {
+  try {
+    next();
+  } catch (error) {
+    console.error('Middleware error:', error);
+    socket.emit('error', { message: 'Connection failed' });
+  }
+});
+
+server.use(errorHandler);
+```
+
+## Per-Event Middleware
+
+Apply middleware to specific events:
+
+```typescript
+server.onMessage('chat', async (socket, data) => {
+  // This handler only runs if all middleware passes
+  await socket.broadcast('chat', data);
+});
+```
+
+## API Reference
+
+### `createMiddleware(handler)`
+
+Creates a new middleware function.
+
+**Parameters:**
+- `handler: (socket: ServerSocket, next: (error?: Error) => void) => void | Promise<void>`
+  - `socket` - The server socket instance
+  - `next` - Call to proceed to next middleware or reject with error
+
+**Returns:** Middleware function
+
+### Common Use Cases
+
+1. **Authentication**
+   ```typescript
+   const auth = createMiddleware(async (socket, next) => {
+     const user = await authenticateUser(socket);
+     socket.set('user', user);
+     next();
+   });
+   ```
+
+2. **Authorization**
+   ```typescript
+   const checkPermission = (permission: string) => {
+     return createMiddleware(async (socket, next) => {
+       const user = socket.get('user');
+       if (user.hasPermission(permission)) {
+         next();
+       } else {
+         next(new Error('Insufficient permissions'));
+       }
+     });
+   };
+   ```
+
+3. **Request Validation**
+   ```typescript
+   const validateData = createMiddleware(async (socket, next) => {
+     const data = socket.get('data');
+     if (isValid(data)) {
+       next();
+     } else {
+       next(new Error('Invalid data format'));
+     }
+   });
+   ```
+
+4. **Logging & Monitoring**
+   ```typescript
+   const monitor = createMiddleware(async (socket, next) => {
+     const start = Date.now();
+     next();
+     const duration = Date.now() - start;
+     console.log(`Request processed in ${duration}ms`);
+   });
+   ```
+
+## Best Practices
+
+- Keep middleware functions focused on a single responsibility
+- Handle errors gracefully
+- Use async/await for asynchronous operations
+- Order middleware from most general to most specific
+- Avoid heavy computations in middleware
+- Cache expensive operations when possible
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server API" icon="server" href="/api-reference/server">
+    Learn about server methods
+  </Card>
+  <Card title="Authentication" icon="lock" href="/advanced/security">
+    Implement authentication
+  </Card>
+</CardGroup>

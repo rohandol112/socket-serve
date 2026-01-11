@@ -81,8 +81,11 @@
     {
       "group": "Guides",
       "pages": [
+        "guides/framework-integrations",
         "guides/nextjs-setup",
         "guides/express-setup",
+        "guides/hono-setup",
+        "guides/fastify-setup",
         "guides/redis-setup",
         "guides/deployment"
       ]
@@ -93,7 +96,8 @@
         "api-reference/introduction",
         "api-reference/server",
         "api-reference/client",
-        "api-reference/types"
+        "api-reference/types",
+        "api-reference/utils"
       ]
     },
     {
@@ -110,6 +114,16 @@
         "api-reference/client/connect",
         "api-reference/client/socket-methods",
         "api-reference/client/events"
+      ]
+    },
+    {
+      "group": "Utilities",
+      "pages": [
+        "api-reference/utils/middleware",
+        "api-reference/utils/presence",
+        "api-reference/utils/compression",
+        "api-reference/utils/binary",
+        "api-reference/utils/namespace"
       ]
     },
     {

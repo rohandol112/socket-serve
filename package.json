@@ -1,7 +1,7 @@
 {
   "name": "socket-serve",
-  "version": "0.6.0",
-  "description": "Real-time socket-like API for serverless platforms. Socket.IO experience without WebSockets.",
+  "version": "1.0.0",
+  "description": "Real-time socket-like API for serverless platforms. Socket.IO experience without WebSockets. Now with Edge Runtime support, compression, presence, and more.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -25,6 +25,84 @@
       "import": "./dist/client/index.js",
       "require": "./dist/client/index.js",
       "default": "./dist/client/index.js"
+    },
+    "./client/enhanced": {
+      "types": "./dist/client/enhanced-socket.d.ts",
+      "import": "./dist/client/enhanced-socket.js",
+      "require": "./dist/client/enhanced-socket.js",
+      "default": "./dist/client/enhanced-socket.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js",
+      "require": "./dist/server/index.js",
+      "default": "./dist/server/index.js"
+    },
+    "./server/enhanced": {
+      "types": "./dist/server/enhanced-server.d.ts",
+      "import": "./dist/server/enhanced-server.js",
+      "require": "./dist/server/enhanced-server.js",
+      "default": "./dist/server/enhanced-server.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters/nextjs.d.ts",
+      "import": "./dist/adapters/nextjs.js",
+      "require": "./dist/adapters/nextjs.js",
+      "default": "./dist/adapters/nextjs.js"
+    },
+    "./adapters/edge": {
+      "types": "./dist/adapters/nextjs-edge.d.ts",
+      "import": "./dist/adapters/nextjs-edge.js",
+      "require": "./dist/adapters/nextjs-edge.js",
+      "default": "./dist/adapters/nextjs-edge.js"
+    },
+    "./adapters/express": {
+      "types": "./dist/adapters/express.d.ts",
+      "import": "./dist/adapters/express.js",
+      "require": "./dist/adapters/express.js",
+      "default": "./dist/adapters/express.js"
+    },
+    "./utils/middleware": {
+      "types": "./dist/utils/middleware.d.ts",
+      "import": "./dist/utils/middleware.js",
+      "require": "./dist/utils/middleware.js",
+      "default": "./dist/utils/middleware.js"
+    },
+    "./utils/presence": {
+      "types": "./dist/utils/presence.d.ts",
+      "import": "./dist/utils/presence.js",
+      "require": "./dist/utils/presence.js",
+      "default": "./dist/utils/presence.js"
+    },
+    "./utils/namespace": {
+      "types": "./dist/utils/namespace.d.ts",
+      "import": "./dist/utils/namespace.js",
+      "require": "./dist/utils/namespace.js",
+      "default": "./dist/utils/namespace.js"
+    },
+    "./utils/compression": {
+      "types": "./dist/utils/compression.d.ts",
+      "import": "./dist/utils/compression.js",
+      "require": "./dist/utils/compression.js",
+      "default": "./dist/utils/compression.js"
+    },
+    "./utils/binary": {
+      "types": "./dist/utils/binary.d.ts",
+      "import": "./dist/utils/binary.js",
+      "require": "./dist/utils/binary.js",
+      "default": "./dist/utils/binary.js"
+    },
+    "./redis": {
+      "types": "./dist/redis/state-manager.d.ts",
+      "import": "./dist/redis/state-manager.js",
+      "require": "./dist/redis/state-manager.js",
+      "default": "./dist/redis/state-manager.js"
+    },
+    "./redis/upstash": {
+      "types": "./dist/redis/upstash-state-manager.d.ts",
+      "import": "./dist/redis/upstash-state-manager.js",
+      "require": "./dist/redis/upstash-state-manager.js",
+      "default": "./dist/redis/upstash-state-manager.js"
     }
   },
   "scripts": {
